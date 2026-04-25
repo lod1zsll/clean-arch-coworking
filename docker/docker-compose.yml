@@ -1,0 +1,21 @@
+services:
+  outbox-pg:
+    image: postgres:18
+    container_name: outbox-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: outbox
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: outbox
+    ports:
+      - '5766:5432'
+    volumes:
+      - outbox-pg_data:/var/lib/postgresql
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U outbox -d outbox' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  outbox-pg_data:

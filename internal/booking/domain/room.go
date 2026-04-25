@@ -21,7 +21,7 @@ func NewRoom(id uuid.UUID, name string, capacity int, hourlyRate Money) *Room {
 	}
 }
 
-func (r *Room) ID() uuid.UUID      { return r.id }
-func (r *Room) Name() string       { return r.name }
-func (r *Room) Capacity() int      { return r.capacity }
-func (r *Room) HourlyRate() Money  { return r.hourlyRate }
+func (r *Room) ID() uuid.UUID     { return r.id }
+func (r *Room) Name() string      { return r.name }
+func (r *Room) Capacity() int     { return r.capacity }
+func (r *Room) HourlyRate() Money { return r.hourlyRate }

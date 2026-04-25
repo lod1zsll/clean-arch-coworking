@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/example/coworking/internal/booking/domain"
+	"github.com/google/uuid"
 )
 
 type BookingService interface {

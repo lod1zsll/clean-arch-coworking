@@ -6,7 +6,6 @@ import (
 	"github.com/example/coworking/internal/booking/domain"
 )
 
-
 // TODO: implement real event bus (e.g. NATS, RabbitMQ) for cross-service communication.
 type EventBus struct{}
 
