@@ -44,7 +44,7 @@ func (r *BookingRepository) Save(ctx context.Context, booking *domain.Booking) e
 		booking_price_currency = EXCLUDED.booking_price_currency,
 		external_id = EXCLUDED.external_id,
 		txn_id = EXCLUDED.txn_id
-	`, booking.ID(), booking.RoomID(), booking.UserID(), booking.Slot().From, booking.Slot().To, booking.Status(), booking.Price().Amount, booking.Price().Currency, booking.IdempotencyKey(), booking.TransactionID())
+	`, booking.ID(), booking.RoomID(), booking.UserID(), booking.Slot().From, booking.Slot().To, booking.Status(), booking.Price().ToInt(), booking.Price().Currency, booking.IdempotencyKey(), booking.TransactionID())
 	if err != nil {
 		return fmt.Errorf("upsert booking: %w", err)
 	}

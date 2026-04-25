@@ -55,8 +55,8 @@ func main() {
 	// Wire dependencies.
 	repo := memory.NewBookingRepository(pgPool)
 	bus := busdummy.NewEventBus()
-	availabilityChecker := policydummy.NewAvailabilityChecker()
-	priceCalculator := policydummy.NewPriceCalculator()
+	availabilityChecker := policydummy.NewAvailabilityChecker(pgPool)
+	priceCalculator := policydummy.NewPriceCalculator(pgPool)
 	eventStore := outbox.NewEventStore(bus)
 	uow := transaction.NewUnitOfWork(repo, eventStore)
 

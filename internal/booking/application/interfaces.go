@@ -5,6 +5,7 @@ import (
 
 	"github.com/example/coworking/internal/booking/domain"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type BookingService interface {
@@ -24,7 +25,7 @@ type EventBus interface {
 }
 
 type PaymentGateway interface {
-	Charge(ctx context.Context, bookingID string, amount int64, currency string) (string, error)
+	Charge(ctx context.Context, bookingID string, amount decimal.Decimal, currency string) (string, error)
 }
 
 type AvailabilityChecker interface {

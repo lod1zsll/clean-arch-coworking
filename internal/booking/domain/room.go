@@ -1,6 +1,12 @@
 package domain
 
-import "github.com/google/uuid"
+import (
+	"errors"
+
+	"github.com/google/uuid"
+)
+
+var ErrRoomNotAvailable = errors.New("already booked for the given slot")
 
 // Room represents a bookable space in the coworking area.
 // TODO: integrate with external room-catalog service for real data.

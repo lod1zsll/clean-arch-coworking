@@ -16,6 +16,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  outbox-nats:
+    image: nats:latest
+    container_name: outbox-nats
+    restart: unless-stopped
+    ports: 
+      - '4222:4222'
+      - '6222:6222'
+      - '8222:8222'
 
 volumes:
   outbox-pg_data:
+
+networks:
+  coworking-network:
+    name: coworking-network
+    driver: bridge
