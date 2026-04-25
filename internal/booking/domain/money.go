@@ -29,7 +29,11 @@ func (m Money) Add(other Money) Money {
 }
 
 // ToInt -> amount in minor units;
-// Example: 100 USD -> 100.00
+// Examples:
+//   - 100 USD -> 100.00
+//   - 100 RUB -> 100.00
+//   - 100 JPY -> 100
+//   - 100 BHD -> 100.000
 func (m Money) ToInt() int64 {
 	decimals, ok := currencyDecimals[m.Currency]
 	if !ok {
