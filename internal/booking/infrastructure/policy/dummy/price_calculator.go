@@ -29,7 +29,7 @@ func (p *PriceCalculator) CalculatePrice(ctx context.Context, roomID uuid.UUID, 
 		exponent int32
 	)
 
-	// TODO: (?) Optimizate query with amount-service and remove currency join fetching
+	// TODO NEW: (?) Optimizate query with amount-service and remove currency join fetching
 	err := p.pg.QueryRow(ctx, `
 	SELECT 
 		r.amount_per_day, r.amount_currency,

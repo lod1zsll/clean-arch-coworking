@@ -23,7 +23,7 @@ func NewAvailabilityChecker(pgPool *pgxpool.Pool) *AvailabilityChecker {
 func (a *AvailabilityChecker) CheckAvailability(ctx context.Context, roomID uuid.UUID, slot domain.DateRange) error {
 	var isAvailable bool
 
-	// TODO: Add index on (room_id, slot_from, slot_to) and optimize query & prevent race condition (gist)
+	// TODO NEW: Add index on (room_id, slot_from, slot_to) and optimize query & prevent race condition (gist)
 	err := a.pg.QueryRow(ctx, `
 	SELECT NOT EXISTS (
 		SELECT

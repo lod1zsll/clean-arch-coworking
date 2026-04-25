@@ -42,7 +42,7 @@ func (m Money) ToInt() int64 {
 	return m.Amount.Shift(decimals).IntPart()
 }
 
-// TODO: Use with DB
+// TODO NEW: Switch to DB logic & add e2e/mock tests with DB
 var currencyDecimals = map[string]int32{
 	"USD": 2,
 	"EUR": 2,

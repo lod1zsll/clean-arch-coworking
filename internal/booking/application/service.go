@@ -54,6 +54,8 @@ func (s *Service) CreateBooking(ctx context.Context, input CreateBookingInput) (
 		return existing.ID(), nil
 	}
 
+	// TODO NEW: Add: room exist check; user exist check; time-slot is available for current room
+
 	slot, err := domain.NewDateRange(input.From, input.To)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("invalid booking period: %w", err)
