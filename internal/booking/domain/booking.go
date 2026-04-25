@@ -71,6 +71,10 @@ func (b *Booking) IdempotencyKey() string {
 	return b.idempotencyKey
 }
 
+func (b *Booking) SetTransactionID(txId string) {
+	b.transactionID = txId
+}
+
 func (b *Booking) IsPaymentConfirmed(txID string) bool {
 	return b.status == Paid && b.transactionID == txID
 }
