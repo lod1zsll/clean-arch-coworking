@@ -54,7 +54,7 @@ func (s *Service) CreateBooking(ctx context.Context, input CreateBookingInput) (
 		return existing.ID(), nil
 	}
 
-	// TODO NEW: Add: room exist check; user exist check; time-slot is available for current room
+	// TODO NEW: Add: room exist check; user exist check
 
 	slot, err := domain.NewDateRange(input.From, input.To)
 	if err != nil {
