@@ -38,16 +38,16 @@ func (s *BookingDomainService) CreateValidatedBooking(
 	if err := s.availabilityChecker.CheckAvailability(ctx, roomID, slot); err != nil {
 		return nil, fmt.Errorf("room not available: %w", err)
 	}
-	
+
 	price, err := s.priceCalculator.CalculatePrice(ctx, roomID, slot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate price: %w", err)
 	}
-	
+
 	booking, err := NewBooking(roomID, userID, slot, price)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create booking: %w", err)
 	}
-	
+
 	return booking, nil
 }

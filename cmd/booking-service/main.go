@@ -17,6 +17,7 @@ import (
 	policydummy "github.com/example/coworking/internal/booking/infrastructure/policy/dummy"
 	"github.com/example/coworking/internal/booking/infrastructure/transaction"
 	"github.com/example/coworking/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -41,11 +42,21 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
 
+	pgPool, err := pgxpool.New(context.Background(), cfg.PostgresDSN())
+	if err != nil {
+		logger.Error("failed to create postgres pool", "error", err)
+		os.Exit(1)
+	}
+	if err := pgPool.Ping(context.Background()); err != nil {
+		logger.Error("failed to ping postgres", "error", err)
+		os.Exit(1)
+	}
+
 	// Wire dependencies.
-	repo := memory.NewBookingRepository()
+	repo := memory.NewBookingRepository(pgPool)
 	bus := busdummy.NewEventBus()
-	availabilityChecker := policydummy.NewAvailabilityChecker()
-	priceCalculator := policydummy.NewPriceCalculator()
+	availabilityChecker := policydummy.NewAvailabilityChecker(pgPool)
+	priceCalculator := policydummy.NewPriceCalculator(pgPool)
 	eventStore := outbox.NewEventStore(bus)
 	uow := transaction.NewUnitOfWork(repo, eventStore)
 
@@ -83,5 +94,8 @@ func main() {
 		logger.Error("shutdown error", "error", err)
 		os.Exit(1)
 	}
+
+	pgPool.Close()
+
 	logger.Info("server stopped")
 }

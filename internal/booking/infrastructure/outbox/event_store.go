@@ -36,13 +36,13 @@ func NewEventStore(bus application.EventBus) application.EventStore {
 func (s *EventStore) SaveEvents(ctx context.Context, events []domain.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	for _, event := range events {
 		data, err := json.Marshal(event)
 		if err != nil {
 			return err
 		}
-		
+
 		outboxEvent := OutboxEvent{
 			ID:        uuid.New(),
 			EventType: getEventType(event),
@@ -50,21 +50,21 @@ func (s *EventStore) SaveEvents(ctx context.Context, events []domain.Event) erro
 			Published: false,
 			CreatedAt: time.Now(),
 		}
-		
+
 		s.events = append(s.events, outboxEvent)
 	}
-	
+
 	// TODO: replace goroutine-based publish with a reliable polling publisher.
 	// Current approach may lose events if the process crashes before publishing.
 	go s.publishPendingEvents(ctx)
-	
+
 	return nil
 }
 
 func (s *EventStore) publishPendingEvents(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	var domainEvents []domain.Event
 	for i, event := range s.events {
 		if !event.Published {
@@ -81,14 +81,14 @@ func (s *EventStore) publishPendingEvents(ctx context.Context) {
 					domainEvent = e
 				}
 			}
-			
+
 			if domainEvent != nil {
 				domainEvents = append(domainEvents, domainEvent)
 				s.events[i].Published = true
 			}
 		}
 	}
-	
+
 	if len(domainEvents) > 0 {
 		_ = s.bus.Publish(ctx, domainEvents)
 	}

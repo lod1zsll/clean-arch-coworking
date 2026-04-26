@@ -44,7 +44,7 @@ type BookingResponse struct {
 	UserID        uuid.UUID `json:"user_id"`
 	From          time.Time `json:"from"`
 	To            time.Time `json:"to"`
-	PriceAmount   int64     `json:"price_amount"`
+	PriceAmount   string    `json:"price_amount"`
 	PriceCurrency string    `json:"price_currency"`
 	Status        string    `json:"status"`
 }

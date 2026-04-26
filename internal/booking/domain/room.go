@@ -1,6 +1,12 @@
 package domain
 
-import "github.com/google/uuid"
+import (
+	"errors"
+
+	"github.com/google/uuid"
+)
+
+var ErrRoomNotAvailable = errors.New("already booked for the given slot")
 
 // Room represents a bookable space in the coworking area.
 // TODO: integrate with external room-catalog service for real data.
@@ -21,7 +27,7 @@ func NewRoom(id uuid.UUID, name string, capacity int, hourlyRate Money) *Room {
 	}
 }
 
-func (r *Room) ID() uuid.UUID      { return r.id }
-func (r *Room) Name() string       { return r.name }
-func (r *Room) Capacity() int      { return r.capacity }
-func (r *Room) HourlyRate() Money  { return r.hourlyRate }
+func (r *Room) ID() uuid.UUID     { return r.id }
+func (r *Room) Name() string      { return r.name }
+func (r *Room) Capacity() int     { return r.capacity }
+func (r *Room) HourlyRate() Money { return r.hourlyRate }
