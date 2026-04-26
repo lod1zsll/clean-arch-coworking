@@ -52,7 +52,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Wire dependencies.
+	// Wire dependencies
 	repo := memory.NewBookingRepository(pgPool)
 	bus := busdummy.NewEventBus()
 	availabilityChecker := policydummy.NewAvailabilityChecker(pgPool)
