@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 
 	"github.com/example/coworking/internal/booking/domain"
 )
@@ -32,7 +33,7 @@ func (r *BookingRepository) Save(ctx context.Context, booking *domain.Booking) e
 		booking_status,
 		booking_price_amount, booking_price_currency,
 		external_id,
-		txn_id
+		tx_id
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	ON CONFLICT (booking_uuid) DO UPDATE SET
 		room_id = EXCLUDED.room_id,
@@ -43,7 +44,7 @@ func (r *BookingRepository) Save(ctx context.Context, booking *domain.Booking) e
 		booking_price_amount = EXCLUDED.booking_price_amount,
 		booking_price_currency = EXCLUDED.booking_price_currency,
 		external_id = EXCLUDED.external_id,
-		txn_id = EXCLUDED.txn_id
+		tx_id = EXCLUDED.tx_id
 	`, booking.ID(), booking.RoomID(), booking.UserID(), booking.Slot().From, booking.Slot().To, booking.Status(), booking.Price().ToInt(), booking.Price().Currency, booking.IdempotencyKey(), booking.TransactionID())
 	if err != nil {
 		return fmt.Errorf("upsert booking: %w", err)
@@ -63,7 +64,7 @@ func (r *BookingRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain
 		booking_status,
 		booking_price_amount, booking_price_currency, 
 		external_id,
-		txn_id 
+		tx_id 
 	FROM
 		bookings
 	WHERE booking_uuid = $1
@@ -88,7 +89,7 @@ func (r *BookingRepository) FindByIdempotencyKey(ctx context.Context, key string
 		booking_status,
 		booking_price_amount, booking_price_currency, 
 		external_id,
-		txn_id 
+		tx_id 
 	FROM
 		bookings
 	WHERE external_id = $1
@@ -104,14 +105,15 @@ func (r *BookingRepository) FindByIdempotencyKey(ctx context.Context, key string
 
 func (r *BookingRepository) scanOnce(row pgx.Row) (*domain.Booking, error) {
 	var (
-		bkID       uuid.UUID
-		roomID     uuid.UUID
-		userID     uuid.UUID
-		slot       domain.DateRange
-		price      domain.Money
-		status     domain.BookingStatus
-		externalID string
-		txID       string
+		bkID          uuid.UUID
+		roomID        uuid.UUID
+		userID        uuid.UUID
+		slot          domain.DateRange
+		amountInMinor int64
+		currency      string
+		status        domain.BookingStatus
+		externalID    string
+		txID          string
 	)
 
 	err := row.Scan(
@@ -121,13 +123,18 @@ func (r *BookingRepository) scanOnce(row pgx.Row) (*domain.Booking, error) {
 		&slot.From,
 		&slot.To,
 		&status,
-		&price.Amount, &price.Currency,
+		&amountInMinor, &currency,
 		&externalID,
 		&txID,
 	)
 	if err != nil {
 		return nil, err
 	}
+
+	price := domain.NewMoneyFromDecimal(
+		decimal.New(amountInMinor, -2),
+		currency,
+	)
 
 	bk, _ := domain.NewBooking(roomID, userID, slot, price)
 	bk.SetIdempotencyKey(externalID)

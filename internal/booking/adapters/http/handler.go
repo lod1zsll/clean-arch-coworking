@@ -78,6 +78,7 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request) {
 
 	id, err := h.svc.CreateBooking(r.Context(), input)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed create booking", "error", err)
 		writeError(w, err)
 		return
 	}
@@ -97,6 +98,7 @@ func (h *BookingHandler) GetBooking(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.svc.GetBooking(r.Context(), bookingID)
 	if err != nil {
+		h.logger.ErrorContext(r.Context(), "failed get booking by id", "error", err)
 		writeError(w, err)
 		return
 	}
