@@ -60,6 +60,7 @@ func (s *Service) CreateBooking(ctx context.Context, input CreateBookingInput) (
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("invalid booking period: %w", err)
 	}
+	// TODO NEW: Add check time-slot is multiple of one day
 
 	var bookingID uuid.UUID
 	err = s.uow.Execute(ctx, func(repo BookingRepo, eventStore EventStore) error {
@@ -120,7 +121,7 @@ func (s *Service) GetBooking(ctx context.Context, id uuid.UUID) (*BookingRespons
 		UserID:        booking.UserID(),
 		From:          booking.Slot().From,
 		To:            booking.Slot().To,
-		PriceAmount:   booking.Price().Amount,
+		PriceAmount:   booking.Price().AmountString(),
 		PriceCurrency: booking.Price().Currency,
 		Status:        statusName,
 	}, nil

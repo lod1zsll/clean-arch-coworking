@@ -11,6 +11,8 @@ services:
       - '5766:5432'
     volumes:
       - outbox-pg_data:/var/lib/postgresql
+    networks:
+      - outbox-network
     healthcheck:
       test: [ 'CMD-SHELL', 'pg_isready -U outbox -d outbox' ]
       interval: 10s
@@ -20,15 +22,34 @@ services:
     image: nats:latest
     container_name: outbox-nats
     restart: unless-stopped
-    ports: 
+    ports:
       - '4222:4222'
       - '6222:6222'
       - '8222:8222'
+  booking-api:
+    image: outbox-booking-service:latest
+    container_name: booking-api
+    restart: unless-stopped
+    depends_on:
+      outbox-pg:
+        condition: service_healthy
+    networks:
+      - outbox-network
+    environment:
+      POSTGRES_HOST: outbox-pg
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: outbox
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: outbox
+      LOG_LEVEL: debug
+      APP_PORT: ${PORT:-3333}
+    ports:
+      - '${PORT:-3333}:${PORT:-3333}'
 
 volumes:
   outbox-pg_data:
 
 networks:
-  coworking-network:
-    name: coworking-network
+  outbox-network:
+    name: outbox-network
     driver: bridge

@@ -22,11 +22,12 @@ func NewPriceCalculator(pgPool *pgxpool.Pool) *PriceCalculator {
 	}
 }
 
+// TODO NEW: Add mock test's
 func (p *PriceCalculator) CalculatePrice(ctx context.Context, roomID uuid.UUID, slot domain.DateRange) (domain.Money, error) {
 	var (
-		amount   int64
-		currency string
-		exponent int32
+		amountMinor int64
+		currency    string
+		exponent    int32
 	)
 
 	// TODO NEW: (?) Optimizate query with amount-service and remove currency join fetching
@@ -40,13 +41,16 @@ func (p *PriceCalculator) CalculatePrice(ctx context.Context, roomID uuid.UUID, 
 		currency c ON r.amount_currency = c.currency_iso
 	WHERE
 		r.room_id = $1
-	`).Scan(&amount, &currency, &exponent)
+	`, roomID.String()).Scan(&amountMinor, &currency, &exponent)
 	if err != nil {
 		return domain.Money{}, fmt.Errorf("calc price scan: %w", err)
 	}
 
+	slotDaysCount := (slot.To.Unix() - slot.From.Unix()) / (60 * 60 * 24)
+	calculatedAmount := decimal.New(amountMinor, -exponent).Mul(decimal.NewFromInt(slotDaysCount))
+
 	return domain.NewMoneyFromDecimal(
-		decimal.New(amount, exponent),
+		calculatedAmount,
 		currency,
 	), nil
 }
