@@ -72,3 +72,13 @@ func TestMoney_ToInt(t *testing.T) {
 		})
 	}
 }
+func TestMoney_ToInt_CurrencyNotExist_Panics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic on not exists currency, got none")
+		}
+	}()
+
+	m := domain.NewMoneyFromDecimal(decimal.NewFromFloat(5.55), "TEST")
+	m.ToInt()
+}
