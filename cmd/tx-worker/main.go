@@ -17,7 +17,7 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("failed to load config", "error", err)
+		slog.Error("Failed to load config", "error", err)
 		os.Exit(1)
 	}
 
@@ -57,7 +57,7 @@ func main() {
 			close(drainDone)
 		}),
 		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, err error) {
-			logger.Error("nats async error", "error", err)
+			logger.Error("Nats async error", "error", err)
 		}),
 	)
 	if err != nil {
@@ -103,15 +103,15 @@ func main() {
 	defer cancel()
 
 	if err := nc.Drain(); err != nil {
-		logger.Error("nats drain failed", "error", err)
+		logger.Error("Nats drain failed", "error", err)
 	}
 
 	// wait drain result or timeout
 	select {
 	case <-drainDone:
-		logger.Info("nats drained")
+		logger.Info("Nats drained successfully")
 	case <-shutdownCtx.Done():
-		logger.Warn("nats drain timeout, forcing close")
+		logger.Error("Nats drain timeout, forcing close")
 		nc.Close()
 	}
 
@@ -123,9 +123,9 @@ func main() {
 	}()
 	select {
 	case <-waitDone:
-		logger.Info("inflight handlers finished")
+		logger.Info("Inflight handlers finished")
 	case <-shutdownCtx.Done():
-		logger.Warn("inflight handlers timeout")
+		logger.Warn("Inflight handlers timeout")
 	}
 
 	pgPool.Close()
