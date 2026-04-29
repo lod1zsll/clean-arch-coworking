@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -28,6 +29,8 @@ func (c *Config) PostgresDSN() string {
 
 // Load parses environment variables into Config using struct tags.
 func Load() (*Config, error) {
+	_ = godotenv.Load() // for local testing
+
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
