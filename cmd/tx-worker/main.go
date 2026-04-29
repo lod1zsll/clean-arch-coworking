@@ -21,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set up structured logging.
+	// set up structured logging
 	var logLevel slog.Level
 	switch cfg.LogLevel {
 	case "debug":
@@ -36,7 +36,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
 
-	// Set up PostgreSQL pool connection's
+	// set up postgres pool
 	pgPool, err := pgxpool.New(context.Background(), cfg.PostgresDSN())
 	if err != nil {
 		logger.Error("Failed to create postgres pool", "error", err)
@@ -48,7 +48,7 @@ func main() {
 	}
 	logger.Info("Postgres pool initialized successfully")
 
-	// Set up NATS
+	// set up nats
 	drainDone := make(chan struct{})
 	nc, err := nats.Connect(
 		nats.DefaultURL,
@@ -92,7 +92,7 @@ func main() {
 		logger.Error("Failed to publish", "error", err)
 	}
 
-	// Graceful shutdown on SIGINT / SIGTERM.
+	// graceful shutdown on SIGINT / SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
