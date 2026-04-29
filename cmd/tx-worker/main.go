@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -48,11 +49,48 @@ func main() {
 	logger.Info("Postgres pool initialized successfully")
 
 	// Set up NATS
-	nc, _ := nats.Connect(nats.DefaultURL)
-	nc.Subscribe("test", func(m *nats.Msg) {
+	drainDone := make(chan struct{})
+	nc, err := nats.Connect(
+		nats.DefaultURL,
+		nats.DrainTimeout(6*time.Second), // between 8 and 5
+		nats.ClosedHandler(func(_ *nats.Conn) {
+			close(drainDone)
+		}),
+		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, err error) {
+			logger.Error("nats async error", "error", err)
+		}),
+	)
+	if err != nil {
+		logger.Error("Failed to connect to nats", "error", err)
+		pgPool.Close()
+		os.Exit(1)
+	}
+
+	var inflight sync.WaitGroup
+
+	_, err = nc.Subscribe("test", func(m *nats.Msg) {
+		inflight.Add(1)
+		defer inflight.Done()
+
+		msgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		logger.Debug("New message in 'test' topic", "message", string(m.Data))
+
+		// prevent errors
+		_ = msgCtx
+		_ = pgPool
 	})
-	nc.Publish("test", []byte("Hello World"))
+	if err != nil {
+		logger.Error("Failed to subscribe", "error", err)
+		nc.Close()
+		pgPool.Close()
+		os.Exit(1)
+	}
+
+	if err := nc.Publish("test", []byte("Hello World")); err != nil {
+		logger.Error("Failed to publish", "error", err)
+	}
 
 	// Graceful shutdown on SIGINT / SIGTERM.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -61,11 +99,35 @@ func main() {
 	<-ctx.Done()
 	logger.Info("Shutting down gracefully...")
 
-	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second) // docker signal timeout = 10s
 	defer cancel()
 
-	nc.Drain() // Maybe remove
-	nc.Close()
+	if err := nc.Drain(); err != nil {
+		logger.Error("nats drain failed", "error", err)
+	}
+
+	// wait drain result or timeout
+	select {
+	case <-drainDone:
+		logger.Info("nats drained")
+	case <-shutdownCtx.Done():
+		logger.Warn("nats drain timeout, forcing close")
+		nc.Close()
+	}
+
+	// wait subscribed gorutines result
+	waitDone := make(chan struct{})
+	go func() {
+		inflight.Wait()
+		close(waitDone)
+	}()
+	select {
+	case <-waitDone:
+		logger.Info("inflight handlers finished")
+	case <-shutdownCtx.Done():
+		logger.Warn("inflight handlers timeout")
+	}
+
 	pgPool.Close()
 
 	logger.Info("Server stopped. Bye!")
