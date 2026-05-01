@@ -17,7 +17,8 @@ import (
 	policydummy "github.com/example/coworking/internal/booking/infrastructure/policy/dummy"
 	"github.com/example/coworking/internal/booking/infrastructure/transaction"
 	"github.com/example/coworking/internal/config"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/example/coworking/pkg/pg"
+	"github.com/example/coworking/pkg/slogger"
 )
 
 func main() {
@@ -27,30 +28,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set up structured logging.
-	var logLevel slog.Level
-	switch cfg.LogLevel {
-	case "debug":
-		logLevel = slog.LevelDebug
-	case "warn":
-		logLevel = slog.LevelWarn
-	case "error":
-		logLevel = slog.LevelError
-	default:
-		logLevel = slog.LevelInfo
-	}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-	slog.SetDefault(logger)
+	logger := slogger.NewLogger(cfg.LogLevel)
 
-	pgPool, err := pgxpool.New(context.Background(), cfg.PostgresDSN())
-	if err != nil {
-		logger.Error("failed to create postgres pool", "error", err)
-		os.Exit(1)
-	}
-	if err := pgPool.Ping(context.Background()); err != nil {
-		logger.Error("failed to ping postgres", "error", err)
-		os.Exit(1)
-	}
+	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
 
 	// Wire dependencies
 	repo := memory.NewBookingRepository(pgPool)
