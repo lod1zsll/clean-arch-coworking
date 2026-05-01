@@ -6,6 +6,7 @@ import (
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/application/outbox"
+	"coworking/internal/booking/domain/events"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -15,7 +16,9 @@ type EventsRepository struct {
 	db executor
 }
 
-func NewEventsRepository(db executor) application.EventsRepo {
+var _ application.EventsRepo = (*EventsRepository)(nil)
+
+func NewEventsRepository(db executor) *EventsRepository {
 	return &EventsRepository{
 		db: db,
 	}
@@ -25,6 +28,11 @@ func (r *EventsRepository) WithTx(tx pgx.Tx) application.EventsRepo {
 	return &EventsRepository{
 		db: tx,
 	}
+}
+
+func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
+
+	return nil
 }
 
 func (r *EventsRepository) PullNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error) {

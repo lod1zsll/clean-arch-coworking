@@ -44,10 +44,12 @@ type UnitOfWork interface {
 }
 
 type EventStore interface {
-	SaveEvents(ctx context.Context, eventItems []events.EventItem) error
+	SaveEvents(ctx context.Context, events []events.EventItem) error
 }
 
 type EventsRepo interface {
+	EventStore
+
 	PullNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error)
 	MarkDoneEvents(ctx context.Context, events []outbox.Event) error
 }

@@ -13,7 +13,6 @@ import (
 	"coworking/internal/booking/application"
 	busdummy "coworking/internal/booking/infrastructure/bus/dummy"
 	"coworking/internal/booking/infrastructure/memory"
-	"coworking/internal/booking/infrastructure/outbox"
 	policydummy "coworking/internal/booking/infrastructure/policy/dummy"
 	"coworking/internal/booking/infrastructure/transaction"
 	"coworking/internal/config"
@@ -33,14 +32,14 @@ func main() {
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
 
 	// Wire dependencies
-	repo := memory.NewBookingRepository(pgPool)
+	bookingRepo := memory.NewBookingRepository(pgPool)
+	eventsRepo := memory.NewEventsRepository(pgPool)
 	bus := busdummy.NewEventBus()
 	availabilityChecker := policydummy.NewAvailabilityChecker(pgPool)
 	priceCalculator := policydummy.NewPriceCalculator(pgPool)
-	eventStore := outbox.NewEventStore(bus)
-	uow := transaction.NewUnitOfWork(repo, eventStore)
+	uow := transaction.NewUnitOfWork(pgPool, bookingRepo, eventsRepo)
 
-	svc := application.NewService(repo, bus, availabilityChecker, priceCalculator, uow, logger)
+	svc := application.NewService(bookingRepo, bus, availabilityChecker, priceCalculator, uow, logger)
 	handler := bookinghttp.NewRouter(svc, logger)
 
 	// Create HTTP server.

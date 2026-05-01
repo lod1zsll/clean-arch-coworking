@@ -16,7 +16,9 @@ type BookingRepository struct {
 	db executor
 }
 
-func NewBookingRepository(db executor) application.BookingRepo {
+var _ application.BookingRepo = (*BookingRepository)(nil)
+
+func NewBookingRepository(db executor) *BookingRepository {
 	return &BookingRepository{
 		db: db,
 	}

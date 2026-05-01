@@ -19,21 +19,21 @@ type txBookingRepo interface {
 }
 
 type txEventStore interface {
-	application.EventStore
-	WithTx(tx pgx.Tx) application.EventStore
+	application.EventsRepo
+	WithTx(tx pgx.Tx) application.EventsRepo
 }
 
 type unitOfWork struct {
 	bookingRepo txBookingRepo
-	eventStore  txEventStore
+	eventRepo   txEventStore
 	pg          *pgxpool.Pool
 }
 
-func NewUnitOfWork(pgPool *pgxpool.Pool, bookingRepo txBookingRepo, eventStore txEventStore) application.UnitOfWork {
+func NewUnitOfWork(pgPool *pgxpool.Pool, bookingRepo txBookingRepo, eventRepo txEventStore) application.UnitOfWork {
 	return &unitOfWork{
 		pg:          pgPool,
 		bookingRepo: bookingRepo,
-		eventStore:  eventStore,
+		eventRepo:   eventRepo,
 	}
 }
 
@@ -51,23 +51,23 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 	}()
 
 	repo := u.bookingRepo.WithTx(tx)
-	store := u.eventStore.WithTx(tx)
+	store := u.eventRepo.WithTx(tx)
 
-	transactionalRepo := &transactionalRepo{
+	txRepository := &txRepo{
 		repo:   repo,
 		events: make([]events.EventItem, 0),
 	}
 
-	transactionalEventStore := &transactionalEventStore{
-		repo: transactionalRepo,
+	txEventRepository := &txEventRepo{
+		repo: txRepository,
 	}
 
-	if err := fn(transactionalRepo, transactionalEventStore); err != nil {
+	if err := fn(txRepository, txEventRepository); err != nil {
 		return err
 	}
 
-	if len(transactionalRepo.events) > 0 {
-		if err := store.SaveEvents(ctx, transactionalRepo.events); err != nil {
+	if len(txRepository.events) > 0 {
+		if err := store.SaveEvents(ctx, txRepository.events); err != nil {
 			return fmt.Errorf("save events: %w", err)
 		}
 	}
@@ -80,12 +80,12 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 	return nil
 }
 
-type transactionalRepo struct {
+type txRepo struct {
 	repo   application.BookingRepo
 	events []events.EventItem
 }
 
-func (t *transactionalRepo) Save(ctx context.Context, b *domain.Booking) error {
+func (t *txRepo) Save(ctx context.Context, b *domain.Booking) error {
 	if err := t.repo.Save(ctx, b); err != nil {
 		return err
 	}
@@ -96,19 +96,19 @@ func (t *transactionalRepo) Save(ctx context.Context, b *domain.Booking) error {
 	return nil
 }
 
-func (t *transactionalRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error) {
+func (t *txRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error) {
 	return t.repo.FindByID(ctx, id)
 }
 
-func (t *transactionalRepo) FindByIdempotencyKey(ctx context.Context, key string) (*domain.Booking, error) {
+func (t *txRepo) FindByIdempotencyKey(ctx context.Context, key string) (*domain.Booking, error) {
 	return t.repo.FindByIdempotencyKey(ctx, key)
 }
 
-type transactionalEventStore struct {
-	repo *transactionalRepo
+type txEventRepo struct {
+	repo *txRepo
 }
 
-func (t *transactionalEventStore) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
+func (t *txEventRepo) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
 	t.repo.events = append(t.repo.events, eventItems...)
 
 	return nil
