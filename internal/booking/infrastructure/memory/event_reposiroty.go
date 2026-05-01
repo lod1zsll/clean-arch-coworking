@@ -2,7 +2,9 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/application/outbox"
@@ -31,8 +33,45 @@ func (r *EventsRepository) WithTx(tx pgx.Tx) application.EventsRepo {
 }
 
 func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
+	if len(eventItems) == 0 {
+		return nil
+	}
 
-	return nil
+	var b strings.Builder
+	b.Grow(len(eventItems) * 10)
+	b.WriteString("INSERT INTO events (event_type, event_data) VALUES ")
+
+	args := make([]any, 0, len(eventItems)*2)
+
+	for i, item := range eventItems {
+		eType, eData := eventItemToRecord(item)
+
+		if i > 0 {
+			b.WriteString(",")
+		}
+
+		fmt.Fprintf(&b, "($%d, $%d)", i*2+1, i*2+2)
+
+		args = append(args, eType, eData)
+	}
+
+	_, err := r.db.Exec(ctx, b.String(), args...)
+	return err
+}
+
+func eventItemToRecord(event events.EventItem) (outbox.EventType, json.RawMessage) {
+	switch event.(type) {
+	case events.RoomBooked:
+		dataBytes, _ := json.Marshal(event)
+
+		return outbox.EventTypeBooking, dataBytes
+	case events.BookingConfirmed:
+		dataBytes, _ := json.Marshal(event)
+
+		return outbox.EventTypeConfirm, dataBytes
+	default:
+		return outbox.EventTypeUnknown, nil
+	}
 }
 
 func (r *EventsRepository) PullNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error) {

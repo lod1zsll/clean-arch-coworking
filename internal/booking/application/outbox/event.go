@@ -14,6 +14,14 @@ const (
 	EventStatusDone EventStatus = "done"
 )
 
+type EventType string
+
+const (
+	EventTypeUnknown EventType = "unknown"
+	EventTypeBooking EventType = "room_booked"
+	EventTypeConfirm EventType = "booking_confirmed"
+)
+
 type Event struct {
 	ID         uuid.UUID
 	EventType  string
