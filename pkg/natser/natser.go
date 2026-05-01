@@ -1,4 +1,4 @@
-package main
+package natser
 
 import (
 	"context"
@@ -16,7 +16,6 @@ type NatsWrapper struct {
 
 func NewNatsWrapper(logger *slog.Logger) (*NatsWrapper, error) {
 	// set up nats
-
 	drainDone := make(chan struct{})
 	nc, err := nats.Connect(
 		nats.DefaultURL,

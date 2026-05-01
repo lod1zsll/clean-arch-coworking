@@ -5,15 +5,16 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
-	"coworking/internal/booking/infrastructure/memory"
-	"coworking/internal/booking/infrastructure/outbox"
 	"coworking/internal/config"
 	"coworking/pkg/natser"
 	"coworking/pkg/pg"
 	"coworking/pkg/slogger"
+
+	"github.com/nats-io/nats.go"
 )
 
 func main() {
@@ -33,14 +34,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	eventsRepo := memory.NewEventsRepository(pgPool)
-	eventsPoller := outbox.NewPoller(logger, natsWrapper.GetConn(), eventsRepo, cfg.TopicOut)
+	var inflight sync.WaitGroup
+	sub, err := natsWrapper.GetConn().Subscribe(cfg.TopicIn, func(msg *nats.Msg) {
+		inflight.Add(1)
+		defer inflight.Done()
 
-	if err := eventsPoller.Start(); err != nil {
-		natsWrapper.Close(context.Background())
-		pgPool.Close()
-		os.Exit(1)
-	}
+		// async work imitation
+		go func() {
+			logger.Info("New msg", "msg_data", string(msg.Data))
+		}()
+	})
 
 	// Graceful shutdown on SIGINT / SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -52,8 +55,10 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 
-	// Close poller
-	eventsPoller.Close(shutdownCtx)
+	// Close subscribe
+	sub.Unsubscribe()
+
+	inflight.Wait()
 
 	// Drain -> Close for nats connection
 	natsWrapper.Close(shutdownCtx)
