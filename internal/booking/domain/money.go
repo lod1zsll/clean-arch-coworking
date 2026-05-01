@@ -53,7 +53,7 @@ func (m Money) ToInt() int64 {
 	return m.Amount.Shift(decimals).IntPart()
 }
 
-// String returns amount formatted with the fixed number of decimals for the currency.
+// AmountString returns amount formatted with the fixed number of decimals for the currency.
 // Examples:
 //   - 100 USD -> "100.00"
 //   - 100 JPY -> "100"
