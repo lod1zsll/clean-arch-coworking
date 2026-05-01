@@ -33,6 +33,7 @@ func NewNatsWrapper(logger *slog.Logger) (*NatsWrapper, error) {
 		return nil, err
 	}
 
+	logger.Info("NATS connected sucessfully")
 	return &NatsWrapper{
 		nc:          nc,
 		logger:      logger,
