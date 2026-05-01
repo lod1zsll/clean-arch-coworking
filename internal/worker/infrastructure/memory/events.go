@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -17,10 +18,7 @@ func NewEventsRepository(pgPool *pgxpool.Pool) *EventsRepository {
 	}
 }
 
-func (r *EventsRepository) FetchNewEvents(ctx context.Context) ([]Event, error) {
-	batchSize := 100
-	reserveTTLSeconds := 2 * 60
-
+func (r *EventsRepository) FetchNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]Event, error) {
 	rows, err := r.pg.Query(ctx, `
 	WITH locked_events AS (
 		SELECT event_id
@@ -46,7 +44,7 @@ func (r *EventsRepository) FetchNewEvents(ctx context.Context) ([]Event, error) 
 		e.event_status,
 		e.created_at,
 		e.reserved_to
-	`, batchSize, reserveTTLSeconds)
+	`, batchSize, reserveTTLSec)
 	// TODO NEW: think about order by creted at ASC
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
@@ -64,6 +62,7 @@ func (r *EventsRepository) FetchNewEvents(ctx context.Context) ([]Event, error) 
 			&e.Data,
 			&e.Status,
 			&e.CreatedAt,
+			&e.ReservedTo,
 		); err != nil {
 			return nil, fmt.Errorf("scan row: %w", err)
 		}
@@ -75,4 +74,24 @@ func (r *EventsRepository) FetchNewEvents(ctx context.Context) ([]Event, error) 
 	}
 
 	return events, nil
+}
+
+func (r *EventsRepository) MarkDoneEvents(ctx context.Context, events []Event) error {
+	ids := make([]uuid.UUID, len(events))
+	for i, e := range events {
+		ids[i] = e.ID
+	}
+
+	_, err := r.pg.Exec(ctx, `
+		UPDATE events
+		SET
+			event_status = 'done'
+			reserved_to = NULL
+		WHERE event_id = ANY($1)
+	`, ids)
+	if err != nil {
+		return fmt.Errorf("mark done events by uuid: %w", err)
+	}
+
+	return nil
 }

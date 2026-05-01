@@ -103,6 +103,7 @@ func (r *BookingRepository) FindByIdempotencyKey(ctx context.Context, key string
 	return bk, nil
 }
 
+// TODO NEW: maybe implement as Scan method for domain.Booking
 func (r *BookingRepository) scanOnce(row pgx.Row) (*domain.Booking, error) {
 	var (
 		bkID          uuid.UUID
