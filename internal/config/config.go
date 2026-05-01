@@ -11,6 +11,8 @@ type Config struct {
 	AppPort  string `env:"APP_PORT"  envDefault:"8080"`
 	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
 
+	OutTopic string `env:"TOPIC_OUT" envDefault:"alert"`
+
 	PostgresHost     string `env:"POSTGRES_HOST"     envDefault:"localhost"`
 	PostgresPort     string `env:"POSTGRES_PORT"     envDefault:"5432"`
 	PostgresDB       string `env:"POSTGRES_DB"       envDefault:"coworking"`

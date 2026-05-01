@@ -2,60 +2,140 @@ package outbox
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"coworking/internal/booking/application"
+
 	"github.com/nats-io/nats.go"
 )
+
+const (
+	batchSize                  = 500
+	batchTTLSec                = 3 * 60
+	tickInterval time.Duration = time.Millisecond * 500
+)
+
+var ErrPollerAlreadyStarted = errors.New("poller already started")
 
 type Poller struct {
 	logger   *slog.Logger
 	nc       *nats.Conn
-	pgPool   *pgxpool.Pool
-	inflight sync.WaitGroup
+	repo     application.EventsRepo
+	outTopic string
+
+	mu      sync.Mutex
+	started bool
+	cancel  context.CancelFunc
+	done    chan struct{}
 }
 
-func NewPoller(logger *slog.Logger, nc *nats.Conn, pgPool *pgxpool.Pool) *Poller {
+func NewPoller(logger *slog.Logger, nc *nats.Conn, repo application.EventsRepo, outTopic string) *Poller {
 	return &Poller{
-		logger: logger,
-		nc:     nc,
-		pgPool: pgPool,
+		logger:   logger,
+		nc:       nc,
+		repo:     repo,
+		outTopic: outTopic,
 	}
 }
 
 func (p *Poller) Start() error {
-	_, err := p.nc.Subscribe("test", func(m *nats.Msg) {
-		p.inflight.Add(1)
-		defer p.inflight.Done()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-		msgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+	if p.started {
+		return ErrPollerAlreadyStarted
+	}
 
-		p.logger.Debug("New message in 'test' topic", "message", string(m.Data))
+	ctx, cancel := context.WithCancel(context.Background())
 
-		// prevent errors
-		_ = msgCtx
-	})
+	p.started = true
+	p.cancel = cancel
+	p.done = make(chan struct{})
+
+	go p.run(ctx, p.done)
+
+	return nil
+}
+
+func (p *Poller) run(ctx context.Context, done chan struct{}) {
+	defer close(done)
+
+	ticker := time.NewTicker(tickInterval)
+	defer ticker.Stop()
+
+	p.runTick(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-ticker.C:
+			p.runTick(ctx)
+		}
+	}
+}
+
+func (p *Poller) runTick(ctx context.Context) {
+	if err := p.tick(ctx); err != nil {
+		p.logger.Error("Poll tick failed", "error", err)
+	}
+}
+
+func (p *Poller) tick(ctx context.Context) error {
+	events, err := p.repo.PullNewEvents(ctx, batchSize, batchTTLSec)
 	if err != nil {
-		p.logger.Error("Failed to subscribe", "error", err)
-		return err
+		return fmt.Errorf("pull events: %w", err)
+	}
+
+	for _, e := range events {
+		eBytes, err := json.Marshal(e.EventMsg)
+		if err != nil {
+			p.logger.Error("Failed to marshal event message", "error", err)
+			continue
+		}
+
+		err = p.nc.Publish(p.outTopic, eBytes)
+		if err != nil {
+			p.logger.Error("Failed to publish message", "error", err)
+			continue
+		}
 	}
 
 	return nil
 }
 
 func (p *Poller) Close(ctx context.Context) {
-	waitDone := make(chan struct{})
-	go func() {
-		p.inflight.Wait()
-		close(waitDone)
-	}()
+	p.mu.Lock()
+
+	if !p.started {
+		p.mu.Unlock()
+		return
+	}
+
+	cancel := p.cancel
+	done := p.done
+
+	p.mu.Unlock()
+
+	cancel()
+
 	select {
-	case <-waitDone:
-		p.logger.Info("Inflight handlers finished")
+	case <-done:
+		p.mu.Lock()
+		p.started = false
+		p.cancel = nil
+		p.done = nil
+		p.mu.Unlock()
+
+		p.logger.Info("Poller stopped")
+
 	case <-ctx.Done():
-		p.logger.Error("Inflight handlers timeout")
+		p.logger.Error("Poller shutdown timeout")
 	}
 }

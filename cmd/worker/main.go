@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"coworking/internal/booking/infrastructure/memory"
 	"coworking/internal/booking/infrastructure/outbox"
 	"coworking/internal/config"
 	"coworking/pkg/pg"
@@ -22,6 +23,7 @@ func main() {
 	}
 
 	logger := slogger.NewLogger(cfg.LogLevel)
+
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
 
 	natsWrapper, err := NewNatsWrapper(logger)
@@ -30,30 +32,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	eventsPoller := outbox.NewPoller(logger, natsWrapper.GetConn(), pgPool)
-	err = eventsPoller.Start()
-	if err != nil {
+	eventsRepo := memory.NewEventsRepository(pgPool)
+	eventsPoller := outbox.NewPoller(logger, natsWrapper.GetConn(), eventsRepo, cfg.OutTopic)
+
+	if err := eventsPoller.Start(); err != nil {
+		natsWrapper.Close(context.Background())
 		pgPool.Close()
 		os.Exit(1)
 	}
 
-	// graceful shutdown on SIGINT / SIGTERM
+	// Graceful shutdown on SIGINT / SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	<-ctx.Done()
 	logger.Info("Shutting down gracefully...")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second) // docker signal timeout = 10s
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
+
+	// Close poller
+	eventsPoller.Close(shutdownCtx)
 
 	// Drain -> Close for nats connection
 	natsWrapper.Close(shutdownCtx)
 
-	// close poller
-	eventsPoller.Close(shutdownCtx)
-
-	// close pool
+	// Close postgres pool
 	pgPool.Close()
 
 	logger.Info("Server stopped. Bye!")

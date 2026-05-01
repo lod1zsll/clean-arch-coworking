@@ -113,7 +113,7 @@ func (r *EventsRepository) PullNewEvents(ctx context.Context, batchSize, reserve
 		var e outbox.Event
 
 		if err := rows.Scan(
-			&e.ID,
+			&e.UUID,
 			&e.Type,
 			&e.Data,
 			&e.Status,
@@ -135,7 +135,7 @@ func (r *EventsRepository) PullNewEvents(ctx context.Context, batchSize, reserve
 func (r *EventsRepository) MarkDoneEvents(ctx context.Context, events []outbox.Event) error {
 	ids := make([]uuid.UUID, len(events))
 	for i, e := range events {
-		ids[i] = e.ID
+		ids[i] = e.UUID
 	}
 
 	_, err := r.db.Exec(ctx, `

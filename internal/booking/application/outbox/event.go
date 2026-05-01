@@ -22,11 +22,15 @@ const (
 	EventTypeConfirm EventType = "booking_confirmed"
 )
 
+type EventMsg struct {
+	UUID uuid.UUID       `db:"event_id" json:"event_id" `
+	Type string          `db:"event_type" json:"event_type"`
+	Data json.RawMessage `db:"event_data" json:"event_data"`
+}
+
 type Event struct {
-	ID         uuid.UUID       `db:"event_id"`
-	Type       string          `db:"event_type"`
-	Data       json.RawMessage `db:"event_data"`
-	Status     EventStatus     `db:"event_status"`
-	CreatedAt  time.Time       `db:"created_at"`
-	ReservedTo *time.Time      `db:"reserved_to"`
+	EventMsg
+	Status     EventStatus `db:"event_status" json:"event_status"`
+	CreatedAt  time.Time   `db:"created_at" json:"created_at"`
+	ReservedTo *time.Time  `db:"reserved_to" json:"reserved_to,omitempty" `
 }
