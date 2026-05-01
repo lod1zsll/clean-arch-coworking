@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/domain"
+	"coworking/internal/booking/domain/events"
+
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
@@ -21,7 +23,7 @@ type BookingRepo interface {
 }
 
 type EventBus interface {
-	Publish(ctx context.Context, events []domain.Event) error
+	Publish(ctx context.Context, eventItems []events.EventItem) error
 }
 
 type PaymentGateway interface {
@@ -41,5 +43,5 @@ type UnitOfWork interface {
 }
 
 type EventStore interface {
-	SaveEvents(ctx context.Context, events []domain.Event) error
+	SaveEvents(ctx context.Context, eventItems []events.EventItem) error
 }

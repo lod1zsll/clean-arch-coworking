@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/domain"
 )
 
 type BookingRepository struct {

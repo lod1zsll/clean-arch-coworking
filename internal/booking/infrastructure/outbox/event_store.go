@@ -8,46 +8,39 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/example/coworking/internal/booking/application"
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/application"
+	"coworking/internal/booking/application/outbox"
+	"coworking/internal/booking/domain/events"
 )
-
-type OutboxEvent struct {
-	ID        uuid.UUID
-	EventType string
-	EventData json.RawMessage
-	Published bool
-	CreatedAt time.Time
-}
 
 type EventStore struct {
 	mu     sync.RWMutex
-	events []OutboxEvent
+	events []outbox.Event
 	bus    application.EventBus
 }
 
 func NewEventStore(bus application.EventBus) application.EventStore {
 	return &EventStore{
-		events: make([]OutboxEvent, 0),
+		events: make([]outbox.Event, 0),
 		bus:    bus,
 	}
 }
 
-func (s *EventStore) SaveEvents(ctx context.Context, events []domain.Event) error {
+func (s *EventStore) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, event := range events {
+	for _, event := range eventItems {
 		data, err := json.Marshal(event)
 		if err != nil {
 			return err
 		}
 
-		outboxEvent := OutboxEvent{
+		outboxEvent := outbox.Event{
 			ID:        uuid.New(),
 			EventType: getEventType(event),
 			EventData: data,
-			Published: false,
+			Status:    outbox.EventStatusNew,
 			CreatedAt: time.Now(),
 		}
 
@@ -65,18 +58,18 @@ func (s *EventStore) publishPendingEvents(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var domainEvents []domain.Event
+	var domainEvents []events.EventItem
 	for i, event := range s.events {
-		if !event.Published {
-			var domainEvent domain.Event
+		if event.Status == outbox.EventStatusNew {
+			var domainEvent events.EventItem
 			switch event.EventType {
 			case "RoomBooked":
-				var e domain.RoomBooked
+				var e events.RoomBooked
 				if err := json.Unmarshal(event.EventData, &e); err == nil {
 					domainEvent = e
 				}
 			case "BookingConfirmed":
-				var e domain.BookingConfirmed
+				var e events.BookingConfirmed
 				if err := json.Unmarshal(event.EventData, &e); err == nil {
 					domainEvent = e
 				}
@@ -84,7 +77,7 @@ func (s *EventStore) publishPendingEvents(ctx context.Context) {
 
 			if domainEvent != nil {
 				domainEvents = append(domainEvents, domainEvent)
-				s.events[i].Published = true
+				s.events[i].Status = outbox.EventStatusDone
 			}
 		}
 	}
@@ -94,11 +87,11 @@ func (s *EventStore) publishPendingEvents(ctx context.Context) {
 	}
 }
 
-func getEventType(event domain.Event) string {
+func getEventType(event events.EventItem) string {
 	switch event.(type) {
-	case domain.RoomBooked:
+	case events.RoomBooked:
 		return "RoomBooked"
-	case domain.BookingConfirmed:
+	case events.BookingConfirmed:
 		return "BookingConfirmed"
 	default:
 		return "Unknown"

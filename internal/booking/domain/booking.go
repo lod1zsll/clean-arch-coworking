@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"coworking/internal/booking/domain/events"
 	"strings"
 
 	"github.com/google/uuid"
@@ -21,7 +22,7 @@ type Booking struct {
 	slot           DateRange
 	price          Money
 	status         BookingStatus
-	events         []Event
+	eventItems     []events.EventItem
 	idempotencyKey string
 	transactionID  string
 }
@@ -38,7 +39,7 @@ func NewBooking(roomID, userID uuid.UUID, slot DateRange, price Money) (*Booking
 		price:  price,
 		status: Pending,
 	}
-	b.raise(RoomBooked{BookingID: b.id.String(), RoomID: roomID.String(), UserID: userID.String()})
+	b.raise(events.RoomBooked{BookingID: b.id.String(), RoomID: roomID.String(), UserID: userID.String()})
 	return b, nil
 }
 
@@ -59,7 +60,7 @@ func (b *Booking) ConfirmPayment(txID string) error {
 	}
 	b.status = Paid
 	b.transactionID = txID
-	b.raise(BookingConfirmed{BookingID: b.id.String(), TxID: txID})
+	b.raise(events.BookingConfirmed{BookingID: b.id.String(), TxID: txID})
 	return nil
 }
 
@@ -79,12 +80,12 @@ func (b *Booking) IsPaymentConfirmed(txID string) bool {
 	return b.status == Paid && b.transactionID == txID
 }
 
-func (b *Booking) PullEvents() []Event {
-	ev := b.events
-	b.events = nil
+func (b *Booking) PullEvents() []events.EventItem {
+	ev := b.eventItems
+	b.eventItems = nil
 	return ev
 }
 
-func (b *Booking) raise(e Event) {
-	b.events = append(b.events, e)
+func (b *Booking) raise(e events.EventItem) {
+	b.eventItems = append(b.eventItems, e)
 }

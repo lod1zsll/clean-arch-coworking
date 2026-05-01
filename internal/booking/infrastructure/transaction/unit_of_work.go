@@ -6,8 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/example/coworking/internal/booking/application"
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/application"
+	"coworking/internal/booking/domain"
+	"coworking/internal/booking/domain/events"
 )
 
 // TODO: replace mutex-based UoW with SQL transaction (BEGIN/COMMIT/ROLLBACK)
@@ -32,7 +33,7 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 	// Create transactional wrappers
 	transactionalRepo := &transactionalRepo{
 		repo:   u.bookingRepo,
-		events: make([]domain.Event, 0),
+		events: make([]events.EventItem, 0),
 	}
 
 	transactionalEventStore := &transactionalEventStore{
@@ -40,10 +41,16 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 		repo:  transactionalRepo,
 	}
 
+	// Init pg tx
+
 	// Execute business logic
+	// Throw pg tx into func
 	if err := fn(transactionalRepo, transactionalEventStore); err != nil {
+		// If err -> Rollback
 		return err
 	}
+
+	// Commit pg tx
 
 	// Save collected events after successful execution
 	if len(transactionalRepo.events) > 0 {
@@ -57,7 +64,7 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 
 type transactionalRepo struct {
 	repo   application.BookingRepo
-	events []domain.Event
+	events []events.EventItem
 	mu     sync.Mutex
 }
 
@@ -85,7 +92,7 @@ type transactionalEventStore struct {
 	repo  *transactionalRepo
 }
 
-func (t *transactionalEventStore) SaveEvents(ctx context.Context, events []domain.Event) error {
+func (t *transactionalEventStore) SaveEvents(ctx context.Context, events []events.EventItem) error {
 	t.repo.mu.Lock()
 	defer t.repo.mu.Unlock()
 

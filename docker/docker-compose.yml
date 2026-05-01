@@ -1,55 +1,70 @@
+version: '3.9'
+
 services:
   outbox-pg:
     image: postgres:18
     container_name: outbox-pg
     restart: unless-stopped
+    pull_policy: if_not_present
     environment:
-      POSTGRES_USER: outbox
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: outbox
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - '5766:5432'
     volumes:
-      - outbox-pg_data:/var/lib/postgresql
+      - outbox-pg_data:/var/lib/postgresql/data
     networks:
       - outbox-network
     healthcheck:
-      test: [ 'CMD-SHELL', 'pg_isready -U outbox -d outbox' ]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 10s
       timeout: 5s
       retries: 5
+
   outbox-nats:
     image: nats:latest
     container_name: outbox-nats
     restart: unless-stopped
+    pull_policy: if_not_present
     ports:
       - '4222:4222'
       - '6222:6222'
       - '8222:8222'
+    networks:
+      - outbox-network
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8222/varz']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   booking-api:
     image: outbox-booking-service:latest
     container_name: booking-api
     restart: unless-stopped
+    pull_policy: if_not_present
     depends_on:
       outbox-pg:
+        condition: service_healthy
+      outbox-nats:
         condition: service_healthy
     networks:
       - outbox-network
     environment:
       POSTGRES_HOST: outbox-pg
       POSTGRES_PORT: 5432
-      POSTGRES_USER: outbox
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: outbox
-      LOG_LEVEL: debug
-      APP_PORT: ${PORT:-3333}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      LOG_LEVEL: ${LOG_LEVEL}
+      APP_PORT: ${PORT}
     ports:
-      - '${PORT:-3333}:${PORT:-3333}'
+      - '${PORT}:${PORT}'
 
 volumes:
   outbox-pg_data:
 
 networks:
   outbox-network:
-    name: outbox-network
     driver: bridge

@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/example/coworking/internal/config"
-	"github.com/example/coworking/internal/worker/infrastructure/poller"
-	"github.com/example/coworking/pkg/pg"
-	"github.com/example/coworking/pkg/slogger"
+	"coworking/internal/booking/infrastructure/outbox"
+	"coworking/internal/config"
+	"coworking/pkg/pg"
+	"coworking/pkg/slogger"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eventsPoller := poller.NewPoller(logger, natsWrapper.GetConn(), pgPool)
+	eventsPoller := outbox.NewPoller(logger, natsWrapper.GetConn(), pgPool)
 	err = eventsPoller.Start()
 	if err != nil {
 		pgPool.Close()

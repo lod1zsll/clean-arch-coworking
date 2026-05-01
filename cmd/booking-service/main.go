@@ -9,16 +9,16 @@ import (
 	"syscall"
 	"time"
 
-	bookinghttp "github.com/example/coworking/internal/booking/adapters/http"
-	"github.com/example/coworking/internal/booking/application"
-	busdummy "github.com/example/coworking/internal/booking/infrastructure/bus/dummy"
-	"github.com/example/coworking/internal/booking/infrastructure/memory"
-	"github.com/example/coworking/internal/booking/infrastructure/outbox"
-	policydummy "github.com/example/coworking/internal/booking/infrastructure/policy/dummy"
-	"github.com/example/coworking/internal/booking/infrastructure/transaction"
-	"github.com/example/coworking/internal/config"
-	"github.com/example/coworking/pkg/pg"
-	"github.com/example/coworking/pkg/slogger"
+	bookinghttp "coworking/internal/booking/adapters/http"
+	"coworking/internal/booking/application"
+	busdummy "coworking/internal/booking/infrastructure/bus/dummy"
+	"coworking/internal/booking/infrastructure/memory"
+	"coworking/internal/booking/infrastructure/outbox"
+	policydummy "coworking/internal/booking/infrastructure/policy/dummy"
+	"coworking/internal/booking/infrastructure/transaction"
+	"coworking/internal/config"
+	"coworking/pkg/pg"
+	"coworking/pkg/slogger"
 )
 
 func main() {

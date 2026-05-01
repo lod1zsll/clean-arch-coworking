@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/example/coworking/internal/booking/application"
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/application"
+	"coworking/internal/booking/domain"
 )
 
 // BookingHandler contains HTTP handlers for the booking resource.

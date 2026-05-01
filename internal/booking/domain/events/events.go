@@ -1,6 +1,6 @@
-package domain
+package events
 
-type Event interface{}
+type EventItem interface{}
 
 type RoomBooked struct {
 	BookingID string

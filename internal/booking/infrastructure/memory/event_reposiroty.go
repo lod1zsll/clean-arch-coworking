@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"coworking/internal/booking/application/outbox"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,7 +20,7 @@ func NewEventsRepository(pgPool *pgxpool.Pool) *EventsRepository {
 	}
 }
 
-func (r *EventsRepository) FetchNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]Event, error) {
+func (r *EventsRepository) FetchNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error) {
 	rows, err := r.pg.Query(ctx, `
 	WITH locked_events AS (
 		SELECT event_id
@@ -51,15 +53,15 @@ func (r *EventsRepository) FetchNewEvents(ctx context.Context, batchSize, reserv
 	}
 	defer rows.Close()
 
-	events := make([]Event, 0, batchSize)
+	events := make([]outbox.Event, 0, batchSize)
 
 	for rows.Next() {
-		var e Event
+		var e outbox.Event
 
 		if err := rows.Scan(
 			&e.ID,
-			&e.Type,
-			&e.Data,
+			&e.EventType,
+			&e.EventData,
 			&e.Status,
 			&e.CreatedAt,
 			&e.ReservedTo,
@@ -76,7 +78,7 @@ func (r *EventsRepository) FetchNewEvents(ctx context.Context, batchSize, reserv
 	return events, nil
 }
 
-func (r *EventsRepository) MarkDoneEvents(ctx context.Context, events []Event) error {
+func (r *EventsRepository) MarkDoneEvents(ctx context.Context, events []outbox.Event) error {
 	ids := make([]uuid.UUID, len(events))
 	for i, e := range events {
 		ids[i] = e.ID
