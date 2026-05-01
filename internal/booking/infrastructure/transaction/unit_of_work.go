@@ -2,63 +2,82 @@ package transaction
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/domain"
 	"coworking/internal/booking/domain/events"
 )
 
-// TODO: replace mutex-based UoW with SQL transaction (BEGIN/COMMIT/ROLLBACK)
-// when switching to PostgreSQL.
-type unitOfWork struct {
-	bookingRepo application.BookingRepo
-	eventStore  application.EventStore
-	mu          sync.Mutex
+type txBookingRepo interface {
+	application.BookingRepo
+	WithTx(tx pgx.Tx) application.BookingRepo
 }
 
-func NewUnitOfWork(bookingRepo application.BookingRepo, eventStore application.EventStore) application.UnitOfWork {
+type txEventStore interface {
+	application.EventStore
+	WithTx(tx pgx.Tx) application.EventStore
+}
+
+type unitOfWork struct {
+	bookingRepo txBookingRepo
+	eventStore  txEventStore
+	pg          *pgxpool.Pool
+}
+
+func NewUnitOfWork(pgPool *pgxpool.Pool, bookingRepo txBookingRepo, eventStore txEventStore) application.UnitOfWork {
 	return &unitOfWork{
+		pg:          pgPool,
 		bookingRepo: bookingRepo,
 		eventStore:  eventStore,
 	}
 }
 
 func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRepo, application.EventStore) error) error {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	tx, err := u.pg.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
 
-	// Create transactional wrappers
+	var committed bool
+	defer func() {
+		if !committed {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	repo := u.bookingRepo.WithTx(tx)
+	store := u.eventStore.WithTx(tx)
+
 	transactionalRepo := &transactionalRepo{
-		repo:   u.bookingRepo,
+		repo:   repo,
 		events: make([]events.EventItem, 0),
 	}
 
 	transactionalEventStore := &transactionalEventStore{
-		store: u.eventStore,
-		repo:  transactionalRepo,
+		repo: transactionalRepo,
 	}
 
-	// Init pg tx
-
-	// Execute business logic
-	// Throw pg tx into func
 	if err := fn(transactionalRepo, transactionalEventStore); err != nil {
-		// If err -> Rollback
 		return err
 	}
 
-	// Commit pg tx
-
-	// Save collected events after successful execution
 	if len(transactionalRepo.events) > 0 {
-		if err := u.eventStore.SaveEvents(ctx, transactionalRepo.events); err != nil {
-			return err
+		if err := store.SaveEvents(ctx, transactionalRepo.events); err != nil {
+			return fmt.Errorf("save events: %w", err)
 		}
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	committed = true
 	return nil
 }
 
@@ -72,11 +91,14 @@ func (t *transactionalRepo) Save(ctx context.Context, b *domain.Booking) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	// Collect events before saving
-	events := b.PullEvents()
-	t.events = append(t.events, events...)
+	if err := t.repo.Save(ctx, b); err != nil {
+		return err
+	}
 
-	return t.repo.Save(ctx, b)
+	domainEvents := b.PullEvents()
+	t.events = append(t.events, domainEvents...)
+
+	return nil
 }
 
 func (t *transactionalRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error) {
@@ -88,15 +110,14 @@ func (t *transactionalRepo) FindByIdempotencyKey(ctx context.Context, key string
 }
 
 type transactionalEventStore struct {
-	store application.EventStore
-	repo  *transactionalRepo
+	repo *transactionalRepo
 }
 
-func (t *transactionalEventStore) SaveEvents(ctx context.Context, events []events.EventItem) error {
+func (t *transactionalEventStore) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
 	t.repo.mu.Lock()
 	defer t.repo.mu.Unlock()
 
-	// Collect events for later processing
-	t.repo.events = append(t.repo.events, events...)
+	t.repo.events = append(t.repo.events, eventItems...)
+
 	return nil
 }
