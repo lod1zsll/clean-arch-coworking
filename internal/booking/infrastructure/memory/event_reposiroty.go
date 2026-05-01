@@ -114,8 +114,8 @@ func (r *EventsRepository) PullNewEvents(ctx context.Context, batchSize, reserve
 
 		if err := rows.Scan(
 			&e.ID,
-			&e.EventType,
-			&e.EventData,
+			&e.Type,
+			&e.Data,
 			&e.Status,
 			&e.CreatedAt,
 			&e.ReservedTo,

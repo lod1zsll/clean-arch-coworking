@@ -3,12 +3,12 @@ package events
 type EventItem interface{}
 
 type RoomBooked struct {
-	BookingID string
-	RoomID    string
-	UserID    string
+	BookingID string `json:"booking_id"`
+	RoomID    string `json:"room_id"`
+	UserID    string `json:"user_id"`
 }
 
 type BookingConfirmed struct {
-	BookingID string
-	TxID      string
+	BookingID string `json:"booking_id"`
+	TxID      string `json:"tx_id"`
 }

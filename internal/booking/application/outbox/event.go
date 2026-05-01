@@ -23,10 +23,10 @@ const (
 )
 
 type Event struct {
-	ID         uuid.UUID
-	EventType  string
-	EventData  json.RawMessage
-	Status     EventStatus
-	CreatedAt  time.Time
-	ReservedTo *time.Time
+	ID         uuid.UUID       `db:"event_id"`
+	Type       string          `db:"event_type"`
+	Data       json.RawMessage `db:"event_data"`
+	Status     EventStatus     `db:"event_status"`
+	CreatedAt  time.Time       `db:"created_at"`
+	ReservedTo *time.Time      `db:"reserved_to"`
 }
