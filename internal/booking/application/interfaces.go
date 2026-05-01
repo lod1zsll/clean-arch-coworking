@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 
+	"coworking/internal/booking/application/outbox"
 	"coworking/internal/booking/domain"
 	"coworking/internal/booking/domain/events"
 
@@ -44,4 +45,9 @@ type UnitOfWork interface {
 
 type EventStore interface {
 	SaveEvents(ctx context.Context, eventItems []events.EventItem) error
+}
+
+type EventsRepo interface {
+	PullNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error)
+	MarkDoneEvents(ctx context.Context, events []outbox.Event) error
 }

@@ -4,24 +4,31 @@ import (
 	"context"
 	"fmt"
 
+	"coworking/internal/booking/application"
 	"coworking/internal/booking/application/outbox"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
 
 type EventsRepository struct {
-	pg *pgxpool.Pool
+	db executor
 }
 
-func NewEventsRepository(pgPool *pgxpool.Pool) *EventsRepository {
+func NewEventsRepository(db executor) application.EventsRepo {
 	return &EventsRepository{
-		pg: pgPool,
+		db: db,
 	}
 }
 
-func (r *EventsRepository) FetchNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error) {
-	rows, err := r.pg.Query(ctx, `
+func (r *EventsRepository) WithTx(tx pgx.Tx) application.EventsRepo {
+	return &EventsRepository{
+		db: tx,
+	}
+}
+
+func (r *EventsRepository) PullNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error) {
+	rows, err := r.db.Query(ctx, `
 	WITH locked_events AS (
 		SELECT event_id
 		FROM events
@@ -84,7 +91,7 @@ func (r *EventsRepository) MarkDoneEvents(ctx context.Context, events []outbox.E
 		ids[i] = e.ID
 	}
 
-	_, err := r.pg.Exec(ctx, `
+	_, err := r.db.Exec(ctx, `
 		UPDATE events
 		SET
 			event_status = 'done'

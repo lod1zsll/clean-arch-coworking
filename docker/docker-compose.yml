@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   outbox-pg:
     image: postgres:18
@@ -13,7 +11,7 @@ services:
     ports:
       - '5766:5432'
     volumes:
-      - outbox-pg_data:/var/lib/postgresql/data
+      - outbox-pg_data:/var/lib/postgresql
     networks:
       - outbox-network
     healthcheck:
@@ -26,18 +24,12 @@ services:
     image: nats:latest
     container_name: outbox-nats
     restart: unless-stopped
-    pull_policy: if_not_present
     ports:
       - '4222:4222'
       - '6222:6222'
       - '8222:8222'
     networks:
       - outbox-network
-    healthcheck:
-      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8222/varz']
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
   booking-api:
     image: outbox-booking-service:latest
@@ -46,8 +38,6 @@ services:
     pull_policy: if_not_present
     depends_on:
       outbox-pg:
-        condition: service_healthy
-      outbox-nats:
         condition: service_healthy
     networks:
       - outbox-network
