@@ -3,7 +3,6 @@ package transaction
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -84,13 +83,9 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 type transactionalRepo struct {
 	repo   application.BookingRepo
 	events []events.EventItem
-	mu     sync.Mutex
 }
 
 func (t *transactionalRepo) Save(ctx context.Context, b *domain.Booking) error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if err := t.repo.Save(ctx, b); err != nil {
 		return err
 	}
@@ -114,9 +109,6 @@ type transactionalEventStore struct {
 }
 
 func (t *transactionalEventStore) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
-	t.repo.mu.Lock()
-	defer t.repo.mu.Unlock()
-
 	t.repo.events = append(t.repo.events, eventItems...)
 
 	return nil
