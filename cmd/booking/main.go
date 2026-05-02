@@ -23,7 +23,7 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("failed to load config", "error", err)
+		slog.Error("Failed to load config", "error", err)
 		os.Exit(1)
 	}
 
@@ -56,7 +56,7 @@ func main() {
 	defer stop()
 
 	go func() {
-		logger.Info("starting booking service", "addr", srv.Addr)
+		logger.Info("Starting booking service", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("server error", "error", err)
 			os.Exit(1)
@@ -64,17 +64,17 @@ func main() {
 	}()
 
 	<-ctx.Done()
-	logger.Info("shutting down gracefully...")
+	logger.Info("Shutting down gracefully...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		logger.Error("shutdown error", "error", err)
+		logger.Error("Shutdown error", "error", err)
 		os.Exit(1)
 	}
 
 	pgPool.Close()
 
-	logger.Info("server stopped")
+	logger.Info("Server stopped")
 }
