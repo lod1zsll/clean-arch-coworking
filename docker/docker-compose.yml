@@ -15,7 +15,7 @@ services:
     networks:
       - outbox-network
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      test: [ 'CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}' ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,7 +32,7 @@ services:
       - outbox-network
 
   booking-api:
-    image: outbox-booking-service:latest
+    image: outbox-booking:latest
     container_name: booking-api
     restart: unless-stopped
     pull_policy: if_not_present
@@ -51,6 +51,51 @@ services:
       APP_PORT: ${PORT}
     ports:
       - '${PORT}:${PORT}'
+
+  booking-worker:
+    image: outbox-worker:latest
+    container_name: booking-worker
+    restart: unless-stopped
+    pull_policy: if_not_present
+    depends_on:
+      outbox-pg:
+        condition: service_healthy
+    networks:
+      - outbox-network
+    environment:
+      POSTGRES_HOST: outbox-pg
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TOPIC_IN: ${TOPIC_IN}
+      TOPIC_OUT: ${TOPIC_OUT}
+      NATS_DSN: ${NATS_DSN}
+
+  booking-alert:
+    image: outbox-alert:latest
+    container_name: booking-alert
+    restart: unless-stopped
+    pull_policy: if_not_present
+    depends_on:
+      outbox-pg:
+        condition: service_healthy
+    networks:
+      - outbox-network
+    environment:
+      POSTGRES_HOST: outbox-pg
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      LOG_LEVEL: ${LOG_LEVEL}
+      APP_PORT: 8080
+      TOPIC_IN: ${TOPIC_IN}
+      TOPIC_OUT: ${TOPIC_OUT}
+      NATS_DSN: ${NATS_DSN}
+    ports:
+      - '${PORT_ALERT:-5566}:8080'
 
 volumes:
   outbox-pg_data:

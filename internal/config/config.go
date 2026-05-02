@@ -14,11 +14,12 @@ type Config struct {
 	TopicIn  string `env:"TOPIC_IN" envDefault:"events"`
 	TopicOut string `env:"TOPIC_OUT" envDefault:"events"`
 
-	PostgresHost     string `env:"POSTGRES_HOST"     envDefault:"localhost"`
-	PostgresPort     string `env:"POSTGRES_PORT"     envDefault:"5432"`
-	PostgresDB       string `env:"POSTGRES_DB"       envDefault:"coworking"`
-	PostgresUser     string `env:"POSTGRES_USER"     envDefault:"coworking"`
-	PostgresPassword string `env:"POSTGRES_PASSWORD" envDefault:"secret"`
+	NatsConnectString string `env:"NATS_DSN" envDefault:"nats://127.0.0.1:4222"`
+	PostgresHost      string `env:"POSTGRES_HOST"     envDefault:"localhost"`
+	PostgresPort      string `env:"POSTGRES_PORT"     envDefault:"5432"`
+	PostgresDB        string `env:"POSTGRES_DB"       envDefault:"coworking"`
+	PostgresUser      string `env:"POSTGRES_USER"     envDefault:"coworking"`
+	PostgresPassword  string `env:"POSTGRES_PASSWORD" envDefault:"secret"`
 }
 
 // PostgresDSN builds a connection string from individual Postgres fields.
@@ -28,6 +29,10 @@ func (c *Config) PostgresDSN() string {
 		c.PostgresUser, c.PostgresPassword,
 		c.PostgresHost, c.PostgresPort, c.PostgresDB,
 	)
+}
+
+func (c *Config) NatsDSN() string {
+	return c.NatsConnectString
 }
 
 // Load parses environment variables into Config using struct tags.

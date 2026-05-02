@@ -109,7 +109,7 @@ func (p *Poller) tick(ctx context.Context) error {
 
 	err = p.repo.MarkDoneEvents(ctx, events)
 	if err != nil {
-		return fmt.Errorf("mark events done: %w", err)
+		return err
 	}
 
 	return nil

@@ -28,7 +28,7 @@ func main() {
 
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
 
-	natsWrapper, err := natser.NewNatsWrapper(logger)
+	natsWrapper, err := natser.NewNatsWrapper(logger, cfg.NatsDSN())
 	if err != nil {
 		pgPool.Close()
 		os.Exit(1)

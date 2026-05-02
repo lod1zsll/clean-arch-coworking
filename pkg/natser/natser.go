@@ -14,11 +14,11 @@ type NatsWrapper struct {
 	drainDoneCh chan struct{}
 }
 
-func NewNatsWrapper(logger *slog.Logger) (*NatsWrapper, error) {
+func NewNatsWrapper(logger *slog.Logger, natsDSN string) (*NatsWrapper, error) {
 	// set up nats
 	drainDone := make(chan struct{})
 	nc, err := nats.Connect(
-		nats.DefaultURL,
+		natsDSN,
 		nats.DrainTimeout(6*time.Second), // between 8 and 5
 		nats.ClosedHandler(func(_ *nats.Conn) {
 			close(drainDone)

@@ -141,7 +141,7 @@ func (r *EventsRepository) MarkDoneEvents(ctx context.Context, events []outbox.E
 	_, err := r.db.Exec(ctx, `
 		UPDATE events
 		SET
-			event_status = 'done'
+			event_status = 'done',
 			reserved_to = NULL
 		WHERE event_id = ANY($1)
 	`, ids)
