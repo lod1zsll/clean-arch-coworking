@@ -6,24 +6,32 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/application"
+	"coworking/internal/booking/domain"
 )
 
 type BookingRepository struct {
-	pg *pgxpool.Pool
+	db executor
 }
 
-func NewBookingRepository(pgPool *pgxpool.Pool) *BookingRepository {
+var _ application.BookingRepo = (*BookingRepository)(nil)
+
+func NewBookingRepository(db executor) *BookingRepository {
 	return &BookingRepository{
-		pg: pgPool,
+		db: db,
+	}
+}
+
+func (r *BookingRepository) WithTx(tx pgx.Tx) application.BookingRepo {
+	return &BookingRepository{
+		db: tx,
 	}
 }
 
 func (r *BookingRepository) Save(ctx context.Context, booking *domain.Booking) error {
-	_, err := r.pg.Exec(ctx, `
+	_, err := r.db.Exec(ctx, `
 	INSERT INTO bookings (
 		booking_uuid,
 		room_id,
@@ -54,7 +62,7 @@ func (r *BookingRepository) Save(ctx context.Context, booking *domain.Booking) e
 }
 
 func (r *BookingRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error) {
-	row := r.pg.QueryRow(ctx, `
+	row := r.db.QueryRow(ctx, `
 	SELECT
 		booking_uuid,
 		room_id,
@@ -79,7 +87,7 @@ func (r *BookingRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain
 }
 
 func (r *BookingRepository) FindByIdempotencyKey(ctx context.Context, key string) (*domain.Booking, error) {
-	row := r.pg.QueryRow(ctx, `
+	row := r.db.QueryRow(ctx, `
 	SELECT
 		booking_uuid,
 		room_id,
@@ -103,6 +111,7 @@ func (r *BookingRepository) FindByIdempotencyKey(ctx context.Context, key string
 	return bk, nil
 }
 
+// TODO NEW: maybe implement as Scan method for domain.Booking
 func (r *BookingRepository) scanOnce(row pgx.Row) (*domain.Booking, error) {
 	var (
 		bkID          uuid.UUID

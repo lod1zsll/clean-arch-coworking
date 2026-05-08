@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/domain"
 )
 
 func TestNewDateRange_Valid(t *testing.T) {

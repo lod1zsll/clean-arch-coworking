@@ -3,7 +3,7 @@ package domain_test
 import (
 	"testing"
 
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/domain"
 	"github.com/shopspring/decimal"
 )
 

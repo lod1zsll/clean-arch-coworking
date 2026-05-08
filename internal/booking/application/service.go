@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/domain"
 )
 
 type Service struct {

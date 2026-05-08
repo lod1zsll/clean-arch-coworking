@@ -6,7 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/example/coworking/internal/booking/domain"
+	"coworking/internal/booking/domain"
+	"coworking/internal/booking/domain/events"
 )
 
 func validSlot(t *testing.T) domain.DateRange {
@@ -35,12 +36,12 @@ func TestNewBooking_Success(t *testing.T) {
 		t.Errorf("expected status Pending, got %v", booking.Status())
 	}
 
-	events := booking.PullEvents()
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	eventItems := booking.PullEvents()
+	if len(eventItems) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(eventItems))
 	}
-	if _, ok := events[0].(domain.RoomBooked); !ok {
-		t.Errorf("expected RoomBooked event, got %T", events[0])
+	if _, ok := eventItems[0].(events.RoomBooked); !ok {
+		t.Errorf("expected RoomBooked event, got %T", eventItems[0])
 	}
 }
 
@@ -65,12 +66,12 @@ func TestConfirmPayment_Success(t *testing.T) {
 		t.Errorf("expected status Paid, got %v", booking.Status())
 	}
 
-	events := booking.PullEvents()
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	eventItems := booking.PullEvents()
+	if len(eventItems) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(eventItems))
 	}
-	if ev, ok := events[0].(domain.BookingConfirmed); !ok {
-		t.Errorf("expected BookingConfirmed event, got %T", events[0])
+	if ev, ok := eventItems[0].(events.BookingConfirmed); !ok {
+		t.Errorf("expected BookingConfirmed event, got %T", eventItems[0])
 	} else if ev.TxID != "tx-123" {
 		t.Errorf("expected TxID tx-123, got %s", ev.TxID)
 	}
