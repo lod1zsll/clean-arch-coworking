@@ -17,6 +17,7 @@ type BookingService interface {
 	ConfirmPayment(ctx context.Context, input ConfirmPaymentInput) error
 }
 
+//go:generate mockgen -destination=mocks/mock_interfaces.go -package=mocks . BookingRepo,AvailabilityChecker,PriceCalculator,UnitOfWork,EventStore
 type BookingRepo interface {
 	Save(ctx context.Context, b *domain.Booking) error
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error)

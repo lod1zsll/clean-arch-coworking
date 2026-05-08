@@ -1,7 +1,9 @@
 package application
 
 import (
+	"coworking/internal/booking/domain"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,7 +28,7 @@ func (i CreateBookingInput) Validate() error {
 		return errors.New("booking dates are required")
 	}
 	if i.From.After(i.To) {
-		return errors.New("invalid date range: from date must be before to date")
+		return fmt.Errorf("%w: from date must be before to date", domain.ErrInvalidRange)
 	}
 	if i.From.Before(time.Now().Add(-time.Hour)) {
 		return errors.New("cannot book in the past")
