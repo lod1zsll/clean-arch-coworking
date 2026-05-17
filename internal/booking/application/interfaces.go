@@ -11,13 +11,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+//go:generate mockgen -destination=mocks/mock_interfaces.go -package=mocks -source=$GOFILE
+
 type BookingService interface {
 	CreateBooking(ctx context.Context, input CreateBookingInput) (uuid.UUID, error)
 	GetBooking(ctx context.Context, id uuid.UUID) (*BookingResponse, error)
 	ConfirmPayment(ctx context.Context, input ConfirmPaymentInput) error
 }
 
-//go:generate mockgen -destination=mocks/mock_interfaces.go -package=mocks . BookingRepo,AvailabilityChecker,PriceCalculator,UnitOfWork,EventStore
 type BookingRepo interface {
 	Save(ctx context.Context, b *domain.Booking) error
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error)

@@ -43,7 +43,7 @@ func NewPoller(logger *slog.Logger, nc *nats.Conn, repo application.EventsRepo, 
 	}
 }
 
-func (p *Poller) Start() error {
+func (p *Poller) Start(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -51,7 +51,7 @@ func (p *Poller) Start() error {
 		return ErrPollerAlreadyStarted
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	p.started = true
 	p.cancel = cancel

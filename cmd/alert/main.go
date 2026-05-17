@@ -27,10 +27,10 @@ func main() {
 	logger := slogger.NewLogger(cfg.LogLevel)
 
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
+	defer pgPool.Close()
 
 	natsWrapper, err := natser.NewNatsWrapper(logger, cfg.NatsDSN())
 	if err != nil {
-		pgPool.Close()
 		os.Exit(1)
 	}
 
@@ -59,9 +59,6 @@ func main() {
 
 	// Drain -> Close for nats connection
 	natsWrapper.Close(shutdownCtx)
-
-	// Close postgres pool
-	pgPool.Close()
 
 	logger.Info("Server stopped. Bye!")
 }

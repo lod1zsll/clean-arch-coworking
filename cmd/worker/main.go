@@ -26,6 +26,7 @@ func main() {
 	logger := slogger.NewLogger(cfg.LogLevel)
 
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
+	defer pgPool.Close()
 
 	natsWrapper, err := natser.NewNatsWrapper(logger, cfg.NatsDSN())
 	if err != nil {
@@ -36,7 +37,10 @@ func main() {
 	eventsRepo := memory.NewEventsRepository(pgPool)
 	eventsPoller := outbox.NewPoller(logger, natsWrapper.GetConn(), eventsRepo, cfg.TopicOut)
 
-	if err := eventsPoller.Start(); err != nil {
+	ctx := context.Background()
+
+	if err := eventsPoller.Start(ctx); err != nil {
+		slog.Error("Failed to start poller", "error", err)
 		natsWrapper.Close(context.Background())
 		pgPool.Close()
 		os.Exit(1)

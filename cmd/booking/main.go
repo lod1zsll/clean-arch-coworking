@@ -11,7 +11,6 @@ import (
 
 	bookinghttp "coworking/internal/booking/adapters/http"
 	"coworking/internal/booking/application"
-	busdummy "coworking/internal/booking/infrastructure/bus/dummy"
 	"coworking/internal/booking/infrastructure/memory"
 	policydummy "coworking/internal/booking/infrastructure/policy/dummy"
 	"coworking/internal/booking/infrastructure/transaction"
@@ -30,11 +29,11 @@ func main() {
 	logger := slogger.NewLogger(cfg.LogLevel)
 
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
+	defer pgPool.Close()
 
 	// Wire dependencies
 	bookingRepo := memory.NewBookingRepository(pgPool)
 	eventsRepo := memory.NewEventsRepository(pgPool)
-	bus := busdummy.NewEventBus()
 	availabilityChecker := policydummy.NewAvailabilityChecker(pgPool)
 	priceCalculator := policydummy.NewPriceCalculator(pgPool)
 	uow := transaction.NewUnitOfWork(pgPool, bookingRepo, eventsRepo)
@@ -73,8 +72,6 @@ func main() {
 		logger.Error("Shutdown error", "error", err)
 		os.Exit(1)
 	}
-
-	pgPool.Close()
 
 	logger.Info("Server stopped")
 }
