@@ -12,7 +12,6 @@ import (
 
 type Service struct {
 	repo          BookingRepo
-	bus           EventBus
 	domainService *domain.BookingDomainService
 	uow           UnitOfWork
 	logger        *slog.Logger
@@ -20,7 +19,6 @@ type Service struct {
 
 func NewService(
 	Repo BookingRepo,
-	EventBus EventBus,
 	AvailabilityChecker AvailabilityChecker,
 	PriceCalculator PriceCalculator,
 	UnitOfWork UnitOfWork,
@@ -33,7 +31,6 @@ func NewService(
 
 	return &Service{
 		repo:          Repo,
-		bus:           EventBus,
 		domainService: domainService,
 		uow:           UnitOfWork,
 		logger:        Logger,

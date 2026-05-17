@@ -25,10 +25,6 @@ type BookingRepo interface {
 	FindByIdempotencyKey(ctx context.Context, key string) (*domain.Booking, error)
 }
 
-type EventBus interface {
-	Publish(ctx context.Context, eventItems []events.EventItem) error
-}
-
 type PaymentGateway interface {
 	Charge(ctx context.Context, bookingID string, amount decimal.Decimal, currency string) (string, error)
 }

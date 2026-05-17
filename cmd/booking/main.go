@@ -38,7 +38,7 @@ func main() {
 	priceCalculator := policydummy.NewPriceCalculator(pgPool)
 	uow := transaction.NewUnitOfWork(pgPool, bookingRepo, eventsRepo)
 
-	svc := application.NewService(bookingRepo, bus, availabilityChecker, priceCalculator, uow, logger)
+	svc := application.NewService(bookingRepo, availabilityChecker, priceCalculator, uow, logger)
 	handler := bookinghttp.NewRouter(svc, logger)
 
 	// Create HTTP server.
