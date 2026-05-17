@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+var ErrUnexpectedEventType = errors.New("unexpected type of event")
 
 type EventsRepository struct {
 	db executor
@@ -44,7 +47,11 @@ func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []events.E
 	args := make([]any, 0, len(eventItems)*2)
 
 	for i, item := range eventItems {
-		eType, eData := eventItemToRecord(item)
+		eType, eData, err := eventItemToRecord(item)
+		if err != nil {
+			// NEED: Add error handling
+			continue
+		}
 
 		if i > 0 {
 			b.WriteString(",")
@@ -59,18 +66,25 @@ func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []events.E
 	return err
 }
 
-func eventItemToRecord(event events.EventItem) (outbox.EventType, json.RawMessage) {
+func eventItemToRecord(event events.EventItem) (outbox.EventType, json.RawMessage, error) {
 	switch event.(type) {
 	case events.RoomBooked:
-		dataBytes, _ := json.Marshal(event)
+		dataBytes, err := json.Marshal(event)
+		if err != nil {
+			return outbox.EventTypeUnknown, nil, err
+		}
 
-		return outbox.EventTypeBooking, dataBytes
+		return outbox.EventTypeBooking, dataBytes, nil
 	case events.BookingConfirmed:
-		dataBytes, _ := json.Marshal(event)
+		dataBytes, err := json.Marshal(event)
+		if err != nil {
+			return outbox.EventTypeUnknown, nil, err
+		}
 
-		return outbox.EventTypeConfirm, dataBytes
+		return outbox.EventTypeConfirm, dataBytes, nil
 	default:
-		return outbox.EventTypeUnknown, nil
+		return outbox.EventTypeUnknown, nil, ErrUnexpectedEventType
+
 	}
 }
 
