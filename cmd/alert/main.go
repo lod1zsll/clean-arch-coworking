@@ -39,10 +39,7 @@ func main() {
 		inflight.Add(1)
 		defer inflight.Done()
 
-		// async work imitation
-		go func() {
-			logger.Info("New msg", "msg_data", string(msg.Data))
-		}()
+		logger.Info("New msg", "msg_data", string(msg.Data))
 	})
 
 	// Graceful shutdown on SIGINT / SIGTERM
