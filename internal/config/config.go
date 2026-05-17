@@ -11,6 +11,8 @@ type Config struct {
 	AppPort  string `env:"APP_PORT"  envDefault:"8080"`
 	LogLevel string `env:"LOG_LEVEL" envDefault:"info"`
 
+	ShutdownTimeoutSec int64 `env:"SHUTDOWN_TIMEOUT_SEC" envDefault:"8"`
+
 	TopicIn  string `env:"TOPIC_IN" envDefault:"events"`
 	TopicOut string `env:"TOPIC_OUT" envDefault:"events"`
 

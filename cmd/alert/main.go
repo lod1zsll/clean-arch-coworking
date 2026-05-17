@@ -49,7 +49,7 @@ func main() {
 	<-ctx.Done()
 	logger.Info("Shutting down gracefully...")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.ShutdownTimeoutSec)*time.Second)
 	defer cancel()
 
 	// Close subscribe
