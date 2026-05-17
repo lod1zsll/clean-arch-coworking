@@ -97,6 +97,7 @@ func (p *Poller) tick(ctx context.Context) error {
 		eBytes, err := json.Marshal(e.EventMsg)
 		if err != nil {
 			p.logger.Error("Failed to marshal event message", "error", err)
+			// NEED: remove message from done list & add to failed queue (need to create failed queue)
 			continue
 		}
 

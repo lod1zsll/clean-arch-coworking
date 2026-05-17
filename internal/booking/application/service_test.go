@@ -41,7 +41,7 @@ func TestGetBooking_Success(t *testing.T) {
 		FindByID(gomock.Any(), booking.ID()).
 		Return(booking, nil)
 
-	svc := application.NewService(mockRepo, nil, nil, nil, nil, slog.Default())
+	svc := application.NewService(mockRepo, nil, nil, nil, slog.Default())
 
 	resp, err := svc.GetBooking(context.Background(), booking.ID())
 
@@ -89,7 +89,7 @@ func TestCreateBooking_InvalidInput(t *testing.T) {
 		IdempotencyKey: idemptKey,
 	}
 
-	svc := application.NewService(mockRepo, nil, nil, nil, nil, slog.Default())
+	svc := application.NewService(mockRepo, nil, nil, nil, slog.Default())
 
 	_, err := svc.CreateBooking(context.Background(), input)
 	if !errors.Is(err, domain.ErrInvalidRange) {
@@ -131,7 +131,7 @@ func TestCreateBooking_Idempotent(t *testing.T) {
 	mockRepo.EXPECT().FindByIdempotencyKey(gomock.Any(), idemptKey).
 		Return(booking, nil)
 
-	svc := application.NewService(mockRepo, nil, nil, nil, nil, slog.Default())
+	svc := application.NewService(mockRepo, nil, nil, nil, slog.Default())
 
 	idemptId, err := svc.CreateBooking(context.Background(), input)
 	if err != nil {
