@@ -2,12 +2,12 @@ package application_test
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
 	"coworking/internal/booking/application"
@@ -48,24 +48,15 @@ func TestGetBooking_Success(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.ID != booking.ID() {
-		t.Errorf("booking id: got %v, want %v", resp.ID, booking.ID())
-	}
-	if resp.RoomID != roomID {
-		t.Errorf("booking room id: got %v, want %v", resp.RoomID, booking.RoomID())
-	}
-	if resp.UserID != userID {
-		t.Errorf("booking user id: got %v, want %v", resp.UserID, booking.UserID())
-	}
-	if resp.From != from {
-		t.Errorf("booking slot from: got %v, want %v", resp.From, from)
-	}
-	if resp.To != to {
-		t.Errorf("booking slot to: got %v, want %v", resp.To, to)
-	}
-	if resp.PriceAmount != money.AmountString() {
-		t.Errorf("booking price amount: got %v, want %v", resp.PriceAmount, money.AmountString())
-	}
+
+	assert := assert.New(t)
+
+	assert.Equal(resp.ID, booking.ID(), "booking id: got %v, want %v", resp.ID, booking.ID())
+	assert.Equal(resp.RoomID, booking.RoomID(), "room id: got %v, want %v", resp.RoomID, booking.RoomID())
+	assert.Equal(resp.UserID, booking.UserID(), "booking user id: got %v, want %v", resp.UserID, booking.UserID())
+	assert.Equal(resp.From, from, "booking slot from: got %v, want %v", resp.From, from)
+	assert.Equal(resp.To, to, "booking slot to: got %v, want %v", resp.To, to)
+	assert.Equal(resp.PriceAmount, money.AmountString(), "booking price amount: got %v, want %v", resp.PriceAmount, money.AmountString())
 }
 
 func TestCreateBooking_InvalidInput(t *testing.T) {
@@ -92,9 +83,7 @@ func TestCreateBooking_InvalidInput(t *testing.T) {
 	svc := application.NewService(mockRepo, nil, nil, nil, slog.Default())
 
 	_, err := svc.CreateBooking(context.Background(), input)
-	if !errors.Is(err, domain.ErrInvalidRange) {
-		t.Errorf("got %v, want %v", err, domain.ErrInvalidRange)
-	}
+	assert.ErrorIs(t, err, domain.ErrInvalidRange, "got %v, want %v", err, domain.ErrInvalidRange)
 }
 
 func TestCreateBooking_Idempotent(t *testing.T) {
@@ -111,14 +100,13 @@ func TestCreateBooking_Idempotent(t *testing.T) {
 
 	money := domain.NewMoneyFromMinor(1000, "USD")
 
+	assert := assert.New(t)
+
 	slot, err := domain.NewDateRange(from, to)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err, "new date range: %v", err)
+
 	booking, err := domain.NewBooking(roomID, userID, slot, money)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(err, "new booking: %v", err)
 
 	input := application.CreateBookingInput{
 		RoomID:         roomID,
@@ -134,10 +122,6 @@ func TestCreateBooking_Idempotent(t *testing.T) {
 	svc := application.NewService(mockRepo, nil, nil, nil, slog.Default())
 
 	idemptId, err := svc.CreateBooking(context.Background(), input)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if idemptId != booking.ID() {
-		t.Errorf("got %v, want %v", idemptId, booking.ID())
-	}
+	assert.Nil(err, "create booking: %v", err)
+	assert.Equal(idemptId, booking.ID(), "got %v, want %v", idemptId, booking.ID())
 }

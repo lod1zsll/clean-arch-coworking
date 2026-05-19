@@ -5,7 +5,6 @@ import (
 
 	"coworking/internal/booking/application/outbox"
 	"coworking/internal/booking/domain"
-	"coworking/internal/booking/domain/events"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -42,7 +41,7 @@ type UnitOfWork interface {
 }
 
 type EventStore interface {
-	SaveEvents(ctx context.Context, events []events.EventItem) error
+	SaveEvents(ctx context.Context, events []domain.EventItem) error
 }
 
 type EventsRepo interface {

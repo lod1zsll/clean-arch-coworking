@@ -9,7 +9,7 @@ import (
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/application/outbox"
-	"coworking/internal/booking/domain/events"
+	"coworking/internal/booking/domain"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -35,7 +35,7 @@ func (r *EventsRepository) WithTx(tx pgx.Tx) application.EventsRepo {
 	}
 }
 
-func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
+func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []domain.EventItem) error {
 	if len(eventItems) == 0 {
 		return nil
 	}
@@ -66,25 +66,44 @@ func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []events.E
 	return err
 }
 
-func eventItemToRecord(event events.EventItem) (outbox.EventType, json.RawMessage, error) {
-	switch event.(type) {
-	case events.RoomBooked:
-		dataBytes, err := json.Marshal(event)
+func eventItemToRecord(event domain.EventItem) (outbox.EventType, json.RawMessage, error) {
+	switch e := event.(type) {
+	case domain.EventRoomBooked:
+		w := struct {
+			BookingID string `json:"booking_id"`
+			RoomID    string `json:"room_id"`
+			UserID    string `json:"user_id"`
+		}{
+			BookingID: e.BookingID,
+			RoomID:    e.RoomID,
+			UserID:    e.UserID,
+		}
+
+		dataBytes, err := json.Marshal(w)
 		if err != nil {
 			return outbox.EventTypeUnknown, nil, err
 		}
 
 		return outbox.EventTypeBooking, dataBytes, nil
-	case events.BookingConfirmed:
-		dataBytes, err := json.Marshal(event)
+
+	case domain.EventBookingConfirmed:
+		w := struct {
+			BookingID string `json:"booking_id"`
+			TxID      string `json:"tx_id"`
+		}{
+			BookingID: e.BookingID,
+			TxID:      e.TxID,
+		}
+
+		dataBytes, err := json.Marshal(w)
 		if err != nil {
 			return outbox.EventTypeUnknown, nil, err
 		}
 
 		return outbox.EventTypeConfirm, dataBytes, nil
+
 	default:
 		return outbox.EventTypeUnknown, nil, ErrUnexpectedEventType
-
 	}
 }
 
