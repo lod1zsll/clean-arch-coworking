@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"coworking/internal/booking/application"
+	"coworking/internal/booking/application/outbox"
 
 	"github.com/nats-io/nats.go"
 )
@@ -94,11 +95,18 @@ func (p *Poller) tick(ctx context.Context) error {
 		return fmt.Errorf("pull events: %w", err)
 	}
 
-	for _, e := range events {
+	errEvents := make([]outbox.Event, 0)
+
+	for i, e := range events {
 		eBytes, err := json.Marshal(e.EventMsg)
 		if err != nil {
 			p.logger.Error("Failed to marshal event message", "error", err)
-			// NEED: remove message from done list & add to failed queue (need to create failed queue)
+
+			// We don't need to change status in DB events table, because we have event TTL
+			// And we don't need to write error in some DB, because we already log this error and we can set up alerts
+			// We can remove TTL for this events, but I don't see an urgent need for this, because the error will occur EXTREMELY rarely
+			errEvents = append(errEvents, e)
+			events = append(events[:i], events[i+1:]...)
 			continue
 		}
 
