@@ -11,8 +11,8 @@ import (
 
 	bookinghttp "coworking/internal/booking/adapters/http"
 	"coworking/internal/booking/application"
-	"coworking/internal/booking/infrastructure/memory"
 	policydummy "coworking/internal/booking/infrastructure/policy/dummy"
+	"coworking/internal/booking/infrastructure/postgres"
 	"coworking/internal/booking/infrastructure/transaction"
 	"coworking/internal/config"
 	"coworking/pkg/pg"
@@ -32,8 +32,8 @@ func main() {
 	defer pgPool.Close()
 
 	// Wire dependencies
-	bookingRepo := memory.NewBookingRepository(pgPool)
-	eventsRepo := memory.NewEventsRepository(pgPool)
+	bookingRepo := postgres.NewBookingRepository(pgPool)
+	eventsRepo := postgres.NewEventsRepository(pgPool)
 	availabilityChecker := policydummy.NewAvailabilityChecker(pgPool)
 	priceCalculator := policydummy.NewPriceCalculator(pgPool)
 	uow := transaction.NewUnitOfWork(pgPool, bookingRepo, eventsRepo)

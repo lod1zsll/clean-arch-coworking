@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"coworking/internal/booking/infrastructure/memory"
 	"coworking/internal/booking/infrastructure/outbox"
+	"coworking/internal/booking/infrastructure/postgres"
 	"coworking/internal/config"
 	"coworking/pkg/natser"
 	"coworking/pkg/pg"
@@ -34,7 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	eventsRepo := memory.NewEventsRepository(pgPool)
+	eventsRepo := postgres.NewEventsRepository(pgPool)
 	eventsPoller := outbox.NewPoller(logger, natsWrapper.GetConn(), eventsRepo, cfg.TopicOut)
 
 	ctx := context.Background()
