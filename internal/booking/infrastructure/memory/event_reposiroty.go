@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/application/outbox"
 	"coworking/internal/booking/domain"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -40,29 +40,24 @@ func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []domain.E
 		return nil
 	}
 
-	var b strings.Builder
-	b.Grow(len(eventItems) * 10)
-	b.WriteString("INSERT INTO events (event_type, event_data) VALUES ")
+	b := sq.Insert("events").Columns("event_type", "event_data")
 
-	args := make([]any, 0, len(eventItems)*2)
-
-	for i, item := range eventItems {
+	for _, item := range eventItems {
 		eType, eData, err := eventItemToRecord(item)
 		if err != nil {
 			// NEED: Add error handling
 			continue
 		}
-
-		if i > 0 {
-			b.WriteString(",")
-		}
-
-		fmt.Fprintf(&b, "($%d, $%d)", i*2+1, i*2+2)
-
-		args = append(args, eType, eData)
+		b = b.Values(eType, eData)
 	}
 
-	_, err := r.db.Exec(ctx, b.String(), args...)
+	sql, args, err := b.PlaceholderFormat(sq.Dollar).ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.Exec(ctx, sql, args...)
+
 	return err
 }
 
