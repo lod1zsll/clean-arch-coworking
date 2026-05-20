@@ -11,6 +11,7 @@ require (
 	github.com/nats-io/nats.go v1.51.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
+	go.uber.org/atomic v1.11.0
 	go.uber.org/mock v0.6.0
 )
 
@@ -33,3 +34,5 @@ require (
 	golang.org/x/text v0.36.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/uber-go/atomic => github.com/uber-go/atomic v1.4.0

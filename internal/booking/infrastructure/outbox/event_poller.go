@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"coworking/internal/booking/application"
@@ -29,7 +30,7 @@ type Poller struct {
 	outTopic string
 
 	mu      sync.Mutex
-	started bool
+	started atomic.Bool
 	cancel  context.CancelFunc
 	done    chan struct{}
 }
@@ -47,13 +48,13 @@ func (p *Poller) Start(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.started {
+	if p.started.Load() {
 		return ErrPollerAlreadyStarted
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	p.started = true
+	p.started.Store(true)
 	p.cancel = cancel
 	p.done = make(chan struct{})
 
@@ -118,8 +119,7 @@ func (p *Poller) tick(ctx context.Context) error {
 
 func (p *Poller) Close(ctx context.Context) {
 	p.mu.Lock()
-
-	if !p.started {
+	if !p.started.Load() {
 		p.mu.Unlock()
 		return
 	}
@@ -127,20 +127,16 @@ func (p *Poller) Close(ctx context.Context) {
 	cancel := p.cancel
 	done := p.done
 
+	p.started.Store(false)
+	p.cancel = nil
+	p.done = nil
 	p.mu.Unlock()
 
 	cancel()
 
 	select {
 	case <-done:
-		p.mu.Lock()
-		p.started = false
-		p.cancel = nil
-		p.done = nil
-		p.mu.Unlock()
-
 		p.logger.Info("Poller stopped")
-
 	case <-ctx.Done():
 		p.logger.Error("Poller shutdown timeout")
 	}
