@@ -7,6 +7,7 @@ import (
 	"coworking/internal/booking/domain"
 
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 	"github.com/shopspring/decimal"
 )
 
@@ -49,4 +50,9 @@ type EventsRepo interface {
 
 	PullNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error)
 	MarkDoneEvents(ctx context.Context, events []outbox.Event) error
+}
+
+type NatsHandler interface {
+	Handle(msg *nats.Msg)
+	Close(ctx context.Context) error
 }

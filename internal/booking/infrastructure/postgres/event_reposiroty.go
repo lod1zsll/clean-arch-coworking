@@ -45,7 +45,7 @@ func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []domain.E
 	for _, item := range eventItems {
 		eType, eData, err := eventItemToRecord(item)
 		if err != nil {
-			// NEED: Add error handling
+			// TODO NEED: Add error handling
 			continue
 		}
 		b = b.Values(eType, eData)

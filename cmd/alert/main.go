@@ -5,16 +5,14 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
+	"coworking/internal/booking/adapters/consumer"
 	"coworking/internal/config"
 	"coworking/pkg/natser"
 	"coworking/pkg/pg"
 	"coworking/pkg/slogger"
-
-	"github.com/nats-io/nats.go"
 )
 
 func main() {
@@ -34,13 +32,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	var inflight sync.WaitGroup
-	sub, err := natsWrapper.GetConn().Subscribe(cfg.TopicIn, func(msg *nats.Msg) {
-		inflight.Add(1)
-		defer inflight.Done()
+	handler := consumer.NewEventsHadnler(logger)
 
-		logger.Info("New msg", "msg_data", string(msg.Data))
-	})
+	sub, err := natsWrapper.GetConn().Subscribe(cfg.TopicIn, handler.Handle)
 
 	// Graceful shutdown on SIGINT / SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -55,7 +49,7 @@ func main() {
 	// Close subscribe
 	sub.Unsubscribe()
 
-	inflight.Wait()
+	_ = handler.Close(shutdownCtx)
 
 	// Drain -> Close for nats connection
 	natsWrapper.Close(shutdownCtx)
