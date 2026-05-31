@@ -5,16 +5,16 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
+	"coworking/internal/booking/adapters/consumer"
 	"coworking/internal/config"
 	"coworking/pkg/natser"
 	"coworking/pkg/pg"
 	"coworking/pkg/slogger"
 
-	"github.com/nats-io/nats.go"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -27,23 +27,25 @@ func main() {
 	logger := slogger.NewLogger(cfg.LogLevel)
 
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
+	defer pgPool.Close()
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisHost + ":" + cfg.RedisPort,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	})
+	defer rdb.Close()
 
 	natsWrapper, err := natser.NewNatsWrapper(logger, cfg.NatsDSN())
 	if err != nil {
-		pgPool.Close()
 		os.Exit(1)
 	}
 
-	var inflight sync.WaitGroup
-	sub, err := natsWrapper.GetConn().Subscribe(cfg.TopicIn, func(msg *nats.Msg) {
-		inflight.Add(1)
-		defer inflight.Done()
+	handler := consumer.NewEventsHandler(logger, natsWrapper, rdb, cfg.TopicIn, time.Duration(cfg.DedupTTLSec)*time.Second)
 
-		// async work imitation
-		go func() {
-			logger.Info("New msg", "msg_data", string(msg.Data))
-		}()
-	})
+	ctx := context.Background()
+
+	handler.Start(ctx)
 
 	// Graceful shutdown on SIGINT / SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -52,19 +54,13 @@ func main() {
 	<-ctx.Done()
 	logger.Info("Shutting down gracefully...")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.ShutdownTimeoutSec)*time.Second)
 	defer cancel()
 
-	// Close subscribe
-	sub.Unsubscribe()
-
-	inflight.Wait()
+	_ = handler.Close(shutdownCtx)
 
 	// Drain -> Close for nats connection
 	natsWrapper.Close(shutdownCtx)
-
-	// Close postgres pool
-	pgPool.Close()
 
 	logger.Info("Server stopped. Bye!")
 }

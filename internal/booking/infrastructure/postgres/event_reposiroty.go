@@ -1,18 +1,21 @@
-package memory
+package postgres
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"strings"
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/application/outbox"
-	"coworking/internal/booking/domain/events"
+	"coworking/internal/booking/domain"
 
+	sq "github.com/Masterminds/squirrel"
+	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+var ErrUnexpectedEventType = errors.New("unexpected type of event")
 
 type EventsRepository struct {
 	db executor
@@ -32,45 +35,70 @@ func (r *EventsRepository) WithTx(tx pgx.Tx) application.EventsRepo {
 	}
 }
 
-func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
+func (r *EventsRepository) SaveEvents(ctx context.Context, eventItems []domain.EventItem) error {
 	if len(eventItems) == 0 {
 		return nil
 	}
 
-	var b strings.Builder
-	b.Grow(len(eventItems) * 10)
-	b.WriteString("INSERT INTO events (event_type, event_data) VALUES ")
+	b := sq.Insert("events").Columns("event_type", "event_data")
 
-	args := make([]any, 0, len(eventItems)*2)
-
-	for i, item := range eventItems {
-		eType, eData := eventItemToRecord(item)
-
-		if i > 0 {
-			b.WriteString(",")
+	for _, item := range eventItems {
+		eType, eData, err := eventItemToRecord(item)
+		if err != nil {
+			// TODO NEED: Add error handling
+			continue
 		}
-
-		fmt.Fprintf(&b, "($%d, $%d)", i*2+1, i*2+2)
-
-		args = append(args, eType, eData)
+		b = b.Values(eType, eData)
 	}
 
-	_, err := r.db.Exec(ctx, b.String(), args...)
+	sql, args, err := b.PlaceholderFormat(sq.Dollar).ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.Exec(ctx, sql, args...)
+
 	return err
 }
 
-func eventItemToRecord(event events.EventItem) (outbox.EventType, json.RawMessage) {
-	switch event.(type) {
-	case events.RoomBooked:
-		dataBytes, _ := json.Marshal(event)
+func eventItemToRecord(event domain.EventItem) (outbox.EventType, json.RawMessage, error) {
+	switch e := event.(type) {
+	case domain.EventRoomBooked:
+		w := struct {
+			BookingID string `json:"booking_id"`
+			RoomID    string `json:"room_id"`
+			UserID    string `json:"user_id"`
+		}{
+			BookingID: e.BookingID,
+			RoomID:    e.RoomID,
+			UserID:    e.UserID,
+		}
 
-		return outbox.EventTypeBooking, dataBytes
-	case events.BookingConfirmed:
-		dataBytes, _ := json.Marshal(event)
+		dataBytes, err := json.Marshal(w)
+		if err != nil {
+			return outbox.EventTypeUnknown, nil, err
+		}
 
-		return outbox.EventTypeConfirm, dataBytes
+		return outbox.EventTypeBooking, dataBytes, nil
+
+	case domain.EventBookingConfirmed:
+		w := struct {
+			BookingID string `json:"booking_id"`
+			TxID      string `json:"tx_id"`
+		}{
+			BookingID: e.BookingID,
+			TxID:      e.TxID,
+		}
+
+		dataBytes, err := json.Marshal(w)
+		if err != nil {
+			return outbox.EventTypeUnknown, nil, err
+		}
+
+		return outbox.EventTypeConfirm, dataBytes, nil
+
 	default:
-		return outbox.EventTypeUnknown, nil
+		return outbox.EventTypeUnknown, nil, ErrUnexpectedEventType
 	}
 }
 

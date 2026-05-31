@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"coworking/internal/booking/domain"
-	"coworking/internal/booking/domain/events"
 )
 
 func validSlot(t *testing.T) domain.DateRange {
@@ -40,7 +39,7 @@ func TestNewBooking_Success(t *testing.T) {
 	if len(eventItems) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(eventItems))
 	}
-	if _, ok := eventItems[0].(events.RoomBooked); !ok {
+	if _, ok := eventItems[0].(domain.EventRoomBooked); !ok {
 		t.Errorf("expected RoomBooked event, got %T", eventItems[0])
 	}
 }
@@ -70,7 +69,7 @@ func TestConfirmPayment_Success(t *testing.T) {
 	if len(eventItems) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(eventItems))
 	}
-	if ev, ok := eventItems[0].(events.BookingConfirmed); !ok {
+	if ev, ok := eventItems[0].(domain.EventBookingConfirmed); !ok {
 		t.Errorf("expected BookingConfirmed event, got %T", eventItems[0])
 	} else if ev.TxID != "tx-123" {
 		t.Errorf("expected TxID tx-123, got %s", ev.TxID)

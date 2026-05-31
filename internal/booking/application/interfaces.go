@@ -5,11 +5,13 @@ import (
 
 	"coworking/internal/booking/application/outbox"
 	"coworking/internal/booking/domain"
-	"coworking/internal/booking/domain/events"
 
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 	"github.com/shopspring/decimal"
 )
+
+//go:generate mockgen -destination=mocks/mock_interfaces.go -package=mocks -source=$GOFILE
 
 type BookingService interface {
 	CreateBooking(ctx context.Context, input CreateBookingInput) (uuid.UUID, error)
@@ -17,15 +19,10 @@ type BookingService interface {
 	ConfirmPayment(ctx context.Context, input ConfirmPaymentInput) error
 }
 
-//go:generate mockgen -destination=mocks/mock_interfaces.go -package=mocks . BookingRepo,AvailabilityChecker,PriceCalculator,UnitOfWork,EventStore
 type BookingRepo interface {
 	Save(ctx context.Context, b *domain.Booking) error
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Booking, error)
 	FindByIdempotencyKey(ctx context.Context, key string) (*domain.Booking, error)
-}
-
-type EventBus interface {
-	Publish(ctx context.Context, eventItems []events.EventItem) error
 }
 
 type PaymentGateway interface {
@@ -45,7 +42,7 @@ type UnitOfWork interface {
 }
 
 type EventStore interface {
-	SaveEvents(ctx context.Context, events []events.EventItem) error
+	SaveEvents(ctx context.Context, events []domain.EventItem) error
 }
 
 type EventsRepo interface {
@@ -53,4 +50,10 @@ type EventsRepo interface {
 
 	PullNewEvents(ctx context.Context, batchSize, reserveTTLSec int) ([]outbox.Event, error)
 	MarkDoneEvents(ctx context.Context, events []outbox.Event) error
+}
+
+type NatsHandler interface {
+	Handle(ctx context.Context, msg *nats.Msg)
+	Start(ctx context.Context) error
+	Close(shutdownCtx context.Context) error
 }

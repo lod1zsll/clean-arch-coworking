@@ -15,7 +15,7 @@ services:
     networks:
       - outbox-network
     healthcheck:
-      test: [ 'CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}' ]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,6 +30,26 @@ services:
       - '8222:8222'
     networks:
       - outbox-network
+
+  outbox-redis:
+    image: redis:alpine
+    container_name: outbox-redis
+    restart: unless-stopped
+    pull_policy: if_not_present
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - '6766:6379'
+    volumes:
+      - outbox-redis_data:/data
+    networks:
+      - outbox-network
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG']
+      interval: 2s
+      timeout: 2s
+      retries: 2
 
   booking-api:
     image: outbox-booking:latest
@@ -94,11 +114,15 @@ services:
       TOPIC_IN: ${TOPIC_IN}
       TOPIC_OUT: ${TOPIC_OUT}
       NATS_DSN: ${NATS_DSN}
+      REDIS_HOST: outbox-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
       - '${PORT_ALERT:-5566}:8080'
 
 volumes:
   outbox-pg_data:
+  outbox-redis_data:
 
 networks:
   outbox-network:

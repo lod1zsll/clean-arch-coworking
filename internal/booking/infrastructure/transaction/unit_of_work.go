@@ -10,7 +10,6 @@ import (
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/domain"
-	"coworking/internal/booking/domain/events"
 )
 
 type txBookingRepo interface {
@@ -55,7 +54,7 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 
 	txRepository := &txRepo{
 		repo:   repo,
-		events: make([]events.EventItem, 0),
+		events: make([]domain.EventItem, 0),
 	}
 
 	txEventRepository := &txEventRepo{
@@ -82,7 +81,7 @@ func (u *unitOfWork) Execute(ctx context.Context, fn func(application.BookingRep
 
 type txRepo struct {
 	repo   application.BookingRepo
-	events []events.EventItem
+	events []domain.EventItem
 }
 
 func (t *txRepo) Save(ctx context.Context, b *domain.Booking) error {
@@ -108,7 +107,7 @@ type txEventRepo struct {
 	repo *txRepo
 }
 
-func (t *txEventRepo) SaveEvents(ctx context.Context, eventItems []events.EventItem) error {
+func (t *txEventRepo) SaveEvents(ctx context.Context, eventItems []domain.EventItem) error {
 	t.repo.events = append(t.repo.events, eventItems...)
 
 	return nil

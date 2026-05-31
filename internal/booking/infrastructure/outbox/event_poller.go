@@ -2,7 +2,6 @@ package outbox
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,7 +9,10 @@ import (
 	"time"
 
 	"coworking/internal/booking/application"
+	"coworking/internal/booking/application/outbox"
 
+	"github.com/goccy/go-json"
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 )
 
@@ -43,7 +45,7 @@ func NewPoller(logger *slog.Logger, nc *nats.Conn, repo application.EventsRepo, 
 	}
 }
 
-func (p *Poller) Start() error {
+func (p *Poller) Start(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -51,7 +53,7 @@ func (p *Poller) Start() error {
 		return ErrPollerAlreadyStarted
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	p.started = true
 	p.cancel = cancel
@@ -93,14 +95,39 @@ func (p *Poller) tick(ctx context.Context) error {
 		return fmt.Errorf("pull events: %w", err)
 	}
 
-	for _, e := range events {
-		eBytes, err := json.Marshal(e.EventMsg)
+	// for feauture maybe
+	errEvents := make([]outbox.Event, 0)
+
+	for i, e := range events {
+		ew := struct {
+			UUID uuid.UUID       `json:"event_id"`
+			Type string          `json:"event_type"`
+			Data json.RawMessage `json:"event_data"`
+		}{
+			UUID: e.UUID,
+			Type: e.Type,
+			Data: e.Data,
+		}
+
+		eBytes, err := json.Marshal(ew)
 		if err != nil {
 			p.logger.Error("Failed to marshal event message", "error", err)
+
+			// We don't need to change status in DB events table, because we have event TTL
+			// And we don't need to write error in some DB, because we already log this error and we can set up alerts
+			// We can remove TTL for this events, but I don't see an urgent need for this, because the error will occur EXTREMELY rarely
+			errEvents = append(errEvents, e)
+			events = append(events[:i], events[i+1:]...)
 			continue
 		}
 
-		err = p.nc.Publish(p.outTopic, eBytes)
+		header := nats.Header{}
+		header.Add("Nats-Msg-Id", e.UUID.String())
+		err = p.nc.PublishMsg(&nats.Msg{
+			Subject: p.outTopic,
+			Header:  header,
+			Data:    eBytes,
+		})
 		if err != nil {
 			p.logger.Error("Failed to publish message", "error", err)
 			continue
@@ -117,7 +144,6 @@ func (p *Poller) tick(ctx context.Context) error {
 
 func (p *Poller) Close(ctx context.Context) {
 	p.mu.Lock()
-
 	if !p.started {
 		p.mu.Unlock()
 		return
@@ -126,20 +152,16 @@ func (p *Poller) Close(ctx context.Context) {
 	cancel := p.cancel
 	done := p.done
 
+	p.started = false
+	p.cancel = nil
+	p.done = nil
 	p.mu.Unlock()
 
 	cancel()
 
 	select {
 	case <-done:
-		p.mu.Lock()
-		p.started = false
-		p.cancel = nil
-		p.done = nil
-		p.mu.Unlock()
-
 		p.logger.Info("Poller stopped")
-
 	case <-ctx.Done():
 		p.logger.Error("Poller shutdown timeout")
 	}

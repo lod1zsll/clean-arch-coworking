@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"coworking/internal/booking/infrastructure/memory"
 	"coworking/internal/booking/infrastructure/outbox"
+	"coworking/internal/booking/infrastructure/postgres"
 	"coworking/internal/config"
 	"coworking/pkg/natser"
 	"coworking/pkg/pg"
@@ -26,6 +26,7 @@ func main() {
 	logger := slogger.NewLogger(cfg.LogLevel)
 
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
+	defer pgPool.Close()
 
 	natsWrapper, err := natser.NewNatsWrapper(logger, cfg.NatsDSN())
 	if err != nil {
@@ -33,10 +34,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	eventsRepo := memory.NewEventsRepository(pgPool)
+	eventsRepo := postgres.NewEventsRepository(pgPool)
 	eventsPoller := outbox.NewPoller(logger, natsWrapper.GetConn(), eventsRepo, cfg.TopicOut)
 
-	if err := eventsPoller.Start(); err != nil {
+	ctx := context.Background()
+
+	if err := eventsPoller.Start(ctx); err != nil {
+		slog.Error("Failed to start poller", "error", err)
 		natsWrapper.Close(context.Background())
 		pgPool.Close()
 		os.Exit(1)
@@ -49,7 +53,7 @@ func main() {
 	<-ctx.Done()
 	logger.Info("Shutting down gracefully...")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.ShutdownTimeoutSec)*time.Second)
 	defer cancel()
 
 	// Close poller
