@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,12 +22,11 @@ type EventsHandler struct {
 	topicIn  string
 	dedupTTL time.Duration
 
+	mu       sync.Mutex
+	started  bool
 	inflight sync.WaitGroup
-	started  atomic.Bool
-	done     chan struct{}
 	cancel   context.CancelFunc
-
-	sub *nats.Subscription
+	sub      *nats.Subscription
 }
 
 var ErrHandlerAlreadyStarted = errors.New("handler already started")
@@ -47,50 +45,61 @@ func NewEventsHandler(logger *slog.Logger, rdb *redis.Client, topicIn string, de
 }
 
 func (h *EventsHandler) Start(ctx context.Context, natsWrapper *natser.NatsWrapper) error {
-	if h.started.Load() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.started {
 		return ErrHandlerAlreadyStarted
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
 
 	sub, err := natsWrapper.GetConn().Subscribe(h.topicIn, func(msg *nats.Msg) {
 		h.Handle(ctx, msg)
 	})
 	if err != nil {
+		cancel()
 		return fmt.Errorf("subscribe: %w", err)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-
 	h.sub = sub
 	h.cancel = cancel
-	h.done = make(chan struct{})
-	h.started.Store(true)
+	h.started = true
 
 	return nil
 }
 
 func (h *EventsHandler) Close(ctx context.Context) error {
-	if !h.started.Load() {
+	h.mu.Lock()
+	if !h.started {
+		h.mu.Unlock()
 		return nil
 	}
 
-	done := h.done
+	sub := h.sub
 	cancel := h.cancel
 
+	h.started = false
+	h.cancel = nil
+	h.sub = nil
+	h.mu.Unlock()
+
+	if err := sub.Unsubscribe(); err != nil {
+		h.logger.Error("Failed to unsubscribe", "error", err)
+	}
+
+	done := make(chan struct{})
 	go func() {
 		h.inflight.Wait()
-		close(h.done)
+		close(done)
 	}()
-
-	h.started.Store(false)
-	h.cancel = nil
-	h.done = nil
-
-	cancel()
 
 	select {
 	case <-done:
+		cancel()
 		return nil
 	case <-ctx.Done():
+		cancel()
 		return ctx.Err()
 	}
 }
@@ -118,7 +127,8 @@ func (h *EventsHandler) Handle(ctx context.Context, msg *nats.Msg) {
 		return
 	}
 
-	set, err := h.rdb.SetNX(ctx, fmt.Sprintf("outbox:dedup:%s:%s", h.topicIn, msgId), 1, h.dedupTTL).Result()
+	key := fmt.Sprintf("outbox:dedup:%s:%s", h.topicIn, msgId)
+	set, err := h.rdb.SetNX(ctx, key, 1, h.dedupTTL).Result()
 	if err != nil {
 		h.logger.Error("Failed to handle message; Redis SetNX", "error", err)
 		return
