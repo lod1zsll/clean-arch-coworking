@@ -17,6 +17,7 @@ import (
 
 type EventsHandler struct {
 	logger *slog.Logger
+	nats   *natser.NatsWrapper
 	rdb    *redis.Client
 
 	topicIn  string
@@ -31,20 +32,21 @@ type EventsHandler struct {
 
 var ErrHandlerAlreadyStarted = errors.New("handler already started")
 
-func NewEventsHandler(logger *slog.Logger, rdb *redis.Client, topicIn string, dedupTTL time.Duration) application.NatsHandler {
+func NewEventsHandler(logger *slog.Logger, natsWrapper *natser.NatsWrapper, rdb *redis.Client, topicIn string, dedupTTL time.Duration) application.NatsHandler {
 	if dedupTTL < 1 {
 		dedupTTL = time.Hour * 24
 	}
 
 	return &EventsHandler{
 		logger:   logger,
+		nats:     natsWrapper,
 		rdb:      rdb,
 		topicIn:  topicIn,
 		dedupTTL: dedupTTL,
 	}
 }
 
-func (h *EventsHandler) Start(ctx context.Context, natsWrapper *natser.NatsWrapper) error {
+func (h *EventsHandler) Start(ctx context.Context) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -54,7 +56,7 @@ func (h *EventsHandler) Start(ctx context.Context, natsWrapper *natser.NatsWrapp
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	sub, err := natsWrapper.GetConn().Subscribe(h.topicIn, func(msg *nats.Msg) {
+	sub, err := h.nats.GetConn().Subscribe(h.topicIn, func(msg *nats.Msg) {
 		h.Handle(ctx, msg)
 	})
 	if err != nil {
@@ -109,7 +111,6 @@ func (h *EventsHandler) Handle(ctx context.Context, msg *nats.Msg) {
 	defer h.inflight.Done()
 
 	msgIdHeader, _ := msg.Header["Nats-Msg-Id"]
-	h.logger.Debug("msg headers", "headers", msg.Header)
 	if len(msgIdHeader) == 0 {
 		h.logger.Error("Failed to handle message; Header 'Nats-Msg-Id' is empty")
 		return
@@ -120,7 +121,6 @@ func (h *EventsHandler) Handle(ctx context.Context, msg *nats.Msg) {
 	}
 
 	msgId := msgIdHeader[0]
-
 	_, err := uuid.Parse(msgId)
 	if err != nil {
 		h.logger.Error("Failed to handle message; 'Nats-Msg-Id' is not valid uuid")

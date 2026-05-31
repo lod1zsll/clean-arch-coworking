@@ -54,5 +54,6 @@ type EventsRepo interface {
 
 type NatsHandler interface {
 	Handle(ctx context.Context, msg *nats.Msg)
+	Start(ctx context.Context) error
 	Close(shutdownCtx context.Context) error
 }
