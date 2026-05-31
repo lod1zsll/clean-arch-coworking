@@ -2,7 +2,6 @@ package outbox
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,8 @@ import (
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/application/outbox"
 
+	"github.com/goccy/go-json"
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 )
 
@@ -95,10 +96,21 @@ func (p *Poller) tick(ctx context.Context) error {
 		return fmt.Errorf("pull events: %w", err)
 	}
 
+	// for feauture maybe
 	errEvents := make([]outbox.Event, 0)
 
 	for i, e := range events {
-		eBytes, err := json.Marshal(e.EventMsg)
+		ew := struct {
+			UUID uuid.UUID       `json:"event_id"`
+			Type string          `json:"event_type"`
+			Data json.RawMessage `json:"event_data"`
+		}{
+			UUID: e.UUID,
+			Type: e.Type,
+			Data: e.Data,
+		}
+
+		eBytes, err := json.Marshal(ew)
 		if err != nil {
 			p.logger.Error("Failed to marshal event message", "error", err)
 

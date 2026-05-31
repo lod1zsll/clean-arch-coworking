@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 
 	"coworking/internal/booking/application"
 	"coworking/internal/booking/domain"
+	"github.com/goccy/go-json"
 )
 
 // BookingHandler contains HTTP handlers for the booking resource.

@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -11,6 +10,7 @@ import (
 	"coworking/internal/booking/domain"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )

@@ -5,13 +5,13 @@ go 1.26.2
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/caarlos0/env/v11 v11.4.0
+	github.com/goccy/go-json v0.10.6
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/joho/godotenv v1.5.1
 	github.com/nats-io/nats.go v1.51.0
 	github.com/shopspring/decimal v1.4.0
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/atomic v1.11.0
 	go.uber.org/mock v0.6.0
 )
 

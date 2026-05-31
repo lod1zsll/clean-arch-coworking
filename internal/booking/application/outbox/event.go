@@ -1,9 +1,9 @@
 package outbox
 
 import (
-	"encoding/json"
 	"time"
 
+	"github.com/goccy/go-json"
 	"github.com/google/uuid"
 )
 
@@ -23,14 +23,14 @@ const (
 )
 
 type EventMsg struct {
-	UUID uuid.UUID       `db:"event_id" json:"event_id" `
-	Type string          `db:"event_type" json:"event_type"`
-	Data json.RawMessage `db:"event_data" json:"event_data"`
+	UUID uuid.UUID
+	Type string
+	Data json.RawMessage
 }
 
 type Event struct {
 	EventMsg
-	Status     EventStatus `db:"event_status" json:"event_status"`
-	CreatedAt  time.Time   `db:"created_at" json:"created_at"`
-	ReservedTo *time.Time  `db:"reserved_to" json:"reserved_to,omitempty" `
+	Status     EventStatus
+	CreatedAt  time.Time
+	ReservedTo *time.Time
 }
