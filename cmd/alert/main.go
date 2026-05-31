@@ -41,9 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	handler := consumer.NewEventsHandler(logger, rdb, )
-
-	sub, err := natsWrapper.GetConn().Subscribe(, handler.Handle)
+	handler := consumer.NewEventsHandler(logger, rdb, cfg.TopicIn, time.Duration(cfg.DedupTTLSec)*time.Second)
 
 	// Graceful shutdown on SIGINT / SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -56,8 +54,6 @@ func main() {
 	defer cancel()
 
 	// Close subscribe
-	sub.Unsubscribe()
-
 	_ = handler.Close(shutdownCtx)
 
 	// Drain -> Close for nats connection

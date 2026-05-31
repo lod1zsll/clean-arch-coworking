@@ -28,6 +28,8 @@ type Config struct {
 	RedisDB       int    `env:"REDIS_DB" envDefault:"0"`
 	RedisUser     string `env:"REDIS_USER" envDefault:""`
 	RedisPassword string `env:"REDIS_PASSWORD" envDefault:"secret"`
+
+	DedupTTLSec int64 `env:"DEDUPLICATION_TTL" envDefault:"0"`
 }
 
 // PostgresDSN builds a connection string from individual Postgres fields.

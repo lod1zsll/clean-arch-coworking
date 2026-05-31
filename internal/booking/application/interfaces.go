@@ -53,6 +53,6 @@ type EventsRepo interface {
 }
 
 type NatsHandler interface {
-	Handle(msg *nats.Msg)
-	Close(ctx context.Context) error
+	Handle(ctx context.Context, msg *nats.Msg)
+	Close(shutdownCtx context.Context) error
 }

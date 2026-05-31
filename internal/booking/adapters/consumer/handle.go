@@ -26,23 +26,76 @@ type EventsHandler struct {
 	inflight sync.WaitGroup
 	started  atomic.Bool
 	done     chan struct{}
+	cancel   context.CancelFunc
+
+	sub *nats.Subscription
 }
 
 var ErrHandlerAlreadyStarted = errors.New("handler already started")
 
 func NewEventsHandler(logger *slog.Logger, rdb *redis.Client, topicIn string, dedupTTL time.Duration) application.NatsHandler {
+	if dedupTTL < 1 {
+		dedupTTL = time.Hour * 24
+	}
+
 	return &EventsHandler{
 		logger:   logger,
 		rdb:      rdb,
 		topicIn:  topicIn,
 		dedupTTL: dedupTTL,
-		done:     make(chan struct{}),
 	}
 }
 
-func (h *EventsHandler) Handle(msg *nats.Msg) {
-	ctx := context.Background()
+func (h *EventsHandler) Start(ctx context.Context, natsWrapper *natser.NatsWrapper) error {
+	if h.started.Load() {
+		return ErrHandlerAlreadyStarted
+	}
 
+	sub, err := natsWrapper.GetConn().Subscribe(h.topicIn, func(msg *nats.Msg) {
+		h.Handle(ctx, msg)
+	})
+	if err != nil {
+		return fmt.Errorf("subscribe: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	h.sub = sub
+	h.cancel = cancel
+	h.done = make(chan struct{})
+	h.started.Store(true)
+
+	return nil
+}
+
+func (h *EventsHandler) Close(ctx context.Context) error {
+	if !h.started.Load() {
+		return nil
+	}
+
+	done := h.done
+	cancel := h.cancel
+
+	go func() {
+		h.inflight.Wait()
+		close(h.done)
+	}()
+
+	h.started.Store(false)
+	h.cancel = nil
+	h.done = nil
+
+	cancel()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (h *EventsHandler) Handle(ctx context.Context, msg *nats.Msg) {
 	h.inflight.Add(1)
 	defer h.inflight.Done()
 
@@ -76,33 +129,4 @@ func (h *EventsHandler) Handle(msg *nats.Msg) {
 	}
 
 	h.logger.Info("New msg", "msg_data", string(msg.Data))
-}
-
-func (h *EventsHandler) Start(natsWrapper *natser.NatsWrapper) error {
-	if h.started.Load() {
-		return ErrHandlerAlreadyStarted
-	}
-
-	sub, err := natsWrapper.GetConn().Subscribe(h.topicIn, h.Handle)
-	if err != nil {
-		return fmt.Errorf("subscribe: %w", err)
-	}
-
-	h.started.Store(true)
-
-	return nil
-}
-
-func (h *EventsHandler) Close(ctx context.Context) error {
-	go func() {
-		h.inflight.Wait()
-		close(h.done)
-	}()
-
-	select {
-	case <-h.done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
