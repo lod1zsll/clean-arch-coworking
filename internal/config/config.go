@@ -22,6 +22,12 @@ type Config struct {
 	PostgresDB        string `env:"POSTGRES_DB"       envDefault:"coworking"`
 	PostgresUser      string `env:"POSTGRES_USER"     envDefault:"coworking"`
 	PostgresPassword  string `env:"POSTGRES_PASSWORD" envDefault:"secret"`
+
+	RedisHost     string `env:"REDIS_HOST" envDefault:"localhost"`
+	RedisPort     string `env:"REDIS_PORT" envDefault:"6379"`
+	RedisDB       int    `env:"REDIS_DB" envDefault:"0"`
+	RedisUser     string `env:"REDIS_USER" envDefault:""`
+	RedisPassword string `env:"REDIS_PASSWORD" envDefault:"secret"`
 }
 
 // PostgresDSN builds a connection string from individual Postgres fields.

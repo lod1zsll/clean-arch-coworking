@@ -13,6 +13,8 @@ import (
 	"coworking/pkg/natser"
 	"coworking/pkg/pg"
 	"coworking/pkg/slogger"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -27,14 +29,21 @@ func main() {
 	pgPool := pg.NewPool(logger, cfg.PostgresDSN())
 	defer pgPool.Close()
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisHost + ":" + cfg.RedisPort,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	})
+	defer rdb.Close()
+
 	natsWrapper, err := natser.NewNatsWrapper(logger, cfg.NatsDSN())
 	if err != nil {
 		os.Exit(1)
 	}
 
-	handler := consumer.NewEventsHadnler(logger)
+	handler := consumer.NewEventsHandler(logger, rdb, )
 
-	sub, err := natsWrapper.GetConn().Subscribe(cfg.TopicIn, handler.Handle)
+	sub, err := natsWrapper.GetConn().Subscribe(, handler.Handle)
 
 	// Graceful shutdown on SIGINT / SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

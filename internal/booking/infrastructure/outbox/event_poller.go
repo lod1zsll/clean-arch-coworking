@@ -122,7 +122,13 @@ func (p *Poller) tick(ctx context.Context) error {
 			continue
 		}
 
-		err = p.nc.Publish(p.outTopic, eBytes)
+		header := nats.Header{}
+		header.Add("Nats-Msg-Id", e.UUID.String())
+		err = p.nc.PublishMsg(&nats.Msg{
+			Subject: p.outTopic,
+			Header:  header,
+			Data:    eBytes,
+		})
 		if err != nil {
 			p.logger.Error("Failed to publish message", "error", err)
 			continue
